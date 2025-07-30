@@ -1,9 +1,7 @@
 from core.llm_provider import LLMProvider
-import json
 import os
 from dotenv import load_dotenv
 from core.prompt import create_xmindmark_prompt
-from core.text_processing import clean_json_string
 
 load_dotenv()
 
