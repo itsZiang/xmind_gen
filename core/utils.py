@@ -77,4 +77,4 @@ def xmindmark_to_xmind_file(xmindmark_content: str) -> str | None:
         return None
     
     xmind_file_path = os.path.join(output_dir, xmind_files[0])
-    return xmind_file_path
+    return f"/{xmind_file_path}"

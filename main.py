@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from api.router import router
-
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(router, prefix="/api")
 
 @app.get("/")
