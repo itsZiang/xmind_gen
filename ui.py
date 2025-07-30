@@ -62,6 +62,43 @@ col1, col2 = st.columns([2, 1])
 
 # --- Chỉnh sửa nội dung ---
 with col2:
+    st.subheader("📄 Chỉnh sửa XMindMark")
+    
+    st.markdown("### 🤖 Chỉnh sửa bằng AI")
+    with st.form(key="llm_edit_form", clear_on_submit=True):
+        edit_request = st.text_area(
+            "Yêu cầu chỉnh sửa:",
+            placeholder="Ví dụ:\n- Thêm chi tiết cho nhánh 'Phương pháp'\n- Xóa nhánh không cần thiết\n- Sắp xếp lại cấu trúc theo thứ tự logic\n- Rút gọn các từ khóa quá dài",
+            height=100,
+            key="edit_request_input"
+        )
+        
+        col_edit_btn, col_edit_info = st.columns([1, 2])
+        with col_edit_btn:
+            edit_with_llm = st.form_submit_button("✨ Chỉnh sửa bằng AI", type="secondary")
+        with col_edit_info:
+            st.caption("💡 AI sẽ chỉnh sửa theo yêu cầu của bạn")
+    
+    if edit_with_llm and edit_request.strip():
+        with st.spinner("🤖 AI đang chỉnh sửa XMindMark..."):
+            edited_content = requests.post(f"{API_BASE_URL}/edit-xmindmark", json={
+                "current_xmindmark": st.session_state.get("xmindmark", ""),
+                "edit_request": edit_request
+            }).json().get("edited_xmindmark", "")
+            
+            # if edited_content != st.session_state.xmindmark_content:
+            #     st.session_state.xmindmark_content = edited_content
+            #     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            #     svg_content = agent.convert_xmindmark_to_svg_cli(edited_content, f"mindmap_ai_edit_{timestamp}")
+            #     st.session_state.mindmap_svg = svg_content
+            #     st.success("✅ AI đã chỉnh sửa thành công!")
+            #     st.rerun()
+            # else:
+            #     st.info("ℹ️ Không có thay đổi nào được thực hiện.")
+    elif edit_with_llm and not edit_request.strip():
+        st.warning("⚠️ Vui lòng nhập yêu cầu chỉnh sửa.")
+    
+    st.divider()
     st.subheader("📝 Nội dung XMindMark")
     xmindmark = st.session_state.get("edited_xmindmark")
     if xmindmark:
@@ -90,47 +127,6 @@ with col1:
         try:
             svg_response = requests.get(f"http://localhost:8000{svg_url}")
             if svg_response.status_code == 200:
-                # CÁCH 1: Dùng HTML components (Khuyên dùng)
-                # svg_content = svg_response.text
-                # st.components.v1.html(
-                #     f"""
-                #     <div style="
-                #         width: 100%; 
-                #         height: 600px; 
-                #         display: flex; 
-                #         justify-content: center; 
-                #         align-items: center;
-                #         border: 1px solid #ddd;
-                #         border-radius: 8px;
-                #         background: white;
-                #         overflow: auto;
-                #     ">
-                #         {svg_content}
-                #     </div>
-                #     """,
-                #     height=620,
-                #     scrolling=False
-                # )
-                
-                # CÁCH 2: Dùng markdown (Đơn giản hơn)
-                # svg_content = svg_response.text
-                # st.markdown(
-                #     f"""
-                #     <div style="
-                #         width: 100%; 
-                #         text-align: center; 
-                #         padding: 20px;
-                #         border: 1px solid #ddd;
-                #         border-radius: 8px;
-                #         background: white;
-                #     ">
-                #         {svg_content}
-                #     </div>
-                #     """,
-                #     unsafe_allow_html=True
-                # )
-                
-                # CÁCH 3: Lưu tạm và dùng st.image (Nếu cần fullscreen)
                 import tempfile
                 import os
                 

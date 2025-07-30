@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from core.llm_handle import generate_xmindmark
+from core.llm_handle import generate_xmindmark, edit_xmindmark_with_llm
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from pydantic import BaseModel
 
@@ -13,11 +13,20 @@ class GenerateXMindMarkRequest(BaseModel):
 class XMindMark(BaseModel):
     content: str
 
+class EditXMindMarkRequest(BaseModel):
+    current_xmindmark: str
+    edit_request: str
+
 
 @router.post("/generate-xmindmark", tags=["input"])
 async def generate_xmindmark_api(request: GenerateXMindMarkRequest):
     xmindmark = generate_xmindmark(request.text, request.user_requirements)
     return {"xmindmark": xmindmark}
+
+@router.post("/edit-xmindmark", tags=["input"])
+async def edit_xmindmark_api(request: EditXMindMarkRequest):
+    edited_xmindmark = edit_xmindmark_with_llm(request.current_xmindmark, request.edit_request)
+    return {"edited_xmindmark": edited_xmindmark}
 
 
 @router.post("/to-svg", tags=["output"])

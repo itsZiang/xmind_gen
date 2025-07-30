@@ -23,3 +23,32 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
       - con2
     """
     return prompt
+
+def create_edit_prompt(self, current_xmindmark: str, edit_request: str) -> str:
+        """Tạo prompt cho chỉnh sửa XMindMark"""
+        prompt = f"""
+        Bạn cần chỉnh sửa nội dung XMindMark hiện tại theo yêu cầu của người dùng.
+        
+        NỘI DUNG XMINDMARK HIỆN TẠI:
+        {current_xmindmark}
+        
+        YÊU CẦU CHỈNH SỬA:
+        {edit_request}
+        
+        HƯỚNG DẪN:
+        - Chỉnh sửa nội dung XMindMark theo yêu cầu nhưng vẫn giữ đúng format XMindMark
+        - Format XMindMark: Dòng đầu là title, các dòng tiếp theo bắt đầu bằng "- " và sử dụng tab để thể hiện cấp độ
+        - Mỗi nút chỉ nên là từ khóa hoặc cụm từ ngắn, không phải câu dài
+        - Đảm bảo cấu trúc phân cấp hợp lý (root -> level 1 -> level 2...)
+        - Trả về CHỈ nội dung XMindMark được chỉnh sửa, không có giải thích hay văn bản khác
+        
+        VÍ DỤ FORMAT ĐÚNG:
+        Tiêu đề bản đồ tư duy
+        - Nhánh chính 1
+        \t- Nhánh phụ 1.1
+        \t\t- Chi tiết 1.1.1
+        \t- Nhánh phụ 1.2
+        - Nhánh chính 2
+        \t- Nhánh phụ 2.1
+        """
+        return prompt
