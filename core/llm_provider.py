@@ -1,5 +1,6 @@
 from openai import OpenAI
 import g4f
+from typing import List
 
 class LLMProvider:
     """Lớp quản lý LLM"""
@@ -7,7 +8,7 @@ class LLMProvider:
         self.client = None
         self.provider = None
 
-    def initialize_client(self, base_url: str, provider: str, api_key: str = None):
+    def initialize_client(self, base_url: str, provider: str, api_key: str | None = None):
         """Khởi tạo client cho provider được chọn"""
         self.provider = provider
         try:
@@ -24,7 +25,7 @@ class LLMProvider:
         except Exception as e:
             raise Exception(f"Lỗi khởi tạo {provider}: {str(e)}")
 
-    def get_available_models(self) -> list:
+    def get_available_models(self) -> List[str]:
         """Lấy danh sách model có sẵn cho provider"""
         if self.provider == "openai":
             return ["gpt-4.1", "gpt-4.1-mini", "misa-qwen3-30b", "misa-qwen3-235b", "misa-internvl3-38b", "omni-moderation-latest"]
@@ -63,3 +64,4 @@ class LLMProvider:
                     raise Exception(f"Phản hồi g4f không đúng định dạng: {response}")
         except Exception as e:
             return f"Lỗi {self.provider}: {str(e)}"
+        return "Không thể xử lý yêu cầu."

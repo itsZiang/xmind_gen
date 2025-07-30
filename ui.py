@@ -1,9 +1,6 @@
 import streamlit as st
 import requests
 from core.text_processing import extract_text_from_file
-from io import BytesIO
-import cairosvg
-
 
 API_BASE_URL = "http://localhost:8000/api" 
 
@@ -169,10 +166,13 @@ if st.session_state.get("edited_xmindmark"):
                 st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
 
     with col_dl2:
-        if st.button("📥 Tạo file XMind"):
+        edited_content = st.session_state.get("edited_xmindmark")
+
+        if edited_content and "xmind_file_url" not in st.session_state:
             try:
+                # Gọi API để tạo file XMind ngay khi có nội dung
                 res = requests.post(f"{API_BASE_URL}/to-xmind", json={
-                    "content": st.session_state["edited_xmindmark"]
+                    "content": edited_content
                 })
                 if res.status_code == 200:
                     xmind_file_url = res.json()["xmind_file"]
@@ -182,7 +182,7 @@ if st.session_state.get("edited_xmindmark"):
             except Exception as e:
                 st.error(f"❌ Lỗi khi tạo file XMind: {str(e)}")
 
-        # Hiển thị nút tải XMind nếu file đã sẵn sàng
+        # Nếu file đã sẵn sàng, hiển thị nút tải
         xmind_file_url = st.session_state.get("xmind_file_url")
         if xmind_file_url:
             try:
@@ -198,3 +198,5 @@ if st.session_state.get("edited_xmindmark"):
                     st.error("❌ Không thể tải file XMind.")
             except Exception as e:
                 st.error(f"❌ Lỗi khi tải file XMind: {str(e)}")
+        else:
+            st.info("Đang xử lý tạo file XMind...")
