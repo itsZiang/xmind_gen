@@ -1,7 +1,7 @@
 from core.llm_provider import LLMProvider
 import os
 from dotenv import load_dotenv
-from core.prompt import create_xmindmark_prompt, create_split_text_prompt, create_global_title_prompt, create_edit_prompt
+from core.prompt import create_xmindmark_prompt, create_split_text_prompt, create_global_title_prompt, create_edit_prompt, create_merge_xmindmark_prompt
 
 load_dotenv()
 
@@ -26,14 +26,14 @@ def generate_xmindmark(text: str, user_requirements: str) -> str:
 #     return result
 
 
-def generate_global_title(text: str) -> str:
-    prompt = create_global_title_prompt(text)
+def generate_global_title(text: str, user_requirements: str) -> str:
+    prompt = create_global_title_prompt(text, user_requirements)
     result = llm_provider.call_llm(prompt, MODEL)
     return result
 
 
-def split_text_with_llm(text: str) -> str:
-    prompt = create_split_text_prompt(text)
+def split_text_with_llm(text: str, user_requirements: str) -> str:
+    prompt = create_split_text_prompt(text, user_requirements)
     result = llm_provider.call_llm(prompt, MODEL)
     return result
 
@@ -46,3 +46,9 @@ def edit_xmindmark_with_llm(current_content: str, edit_request: str) -> str:
         lines = cleaned_result.split('\n')
         cleaned_result = '\n'.join(lines[1:-1]) if len(lines) > 2 else cleaned_result
     return cleaned_result
+
+
+def merge_xmindmark_with_llm(chunks_text: str, global_title: str, user_requirements: str) -> str:
+    prompt = create_merge_xmindmark_prompt(chunks_text, global_title, user_requirements)
+    result = llm_provider.call_llm(prompt, MODEL)
+    return result

@@ -46,7 +46,7 @@ class LLMProvider:
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=15000,
-                    temperature=0.3
+                    temperature=0.5
                 )
                 return response.choices[0].message.content.strip()
             elif self.provider == "g4f":
@@ -54,7 +54,7 @@ class LLMProvider:
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=15000,
-                    temperature=0.3
+                    temperature=0.5
                 )
                 if isinstance(response, str):
                     return response.strip()

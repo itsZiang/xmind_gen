@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import shutil
 from datetime import datetime
+from typing import Optional
 
 def generate_base_filename() -> str:
     now = datetime.now()
@@ -48,21 +49,21 @@ def xmindmark_to_svg(xmindmark_content: str) -> str:
         return image_url
     
 
-def xmindmark_to_xmind_file(xmindmark_content: str) -> str | None:
+def xmindmark_to_xmind_file(xmindmark_content: str) -> Optional[str]:
     """
-    Chuyển đổi XMindMark thành XMind và trả về đường dẫn tới file .xmind
+    Chuyển đổi XMindMark thành file .xmind và trả về đường dẫn tương đối của file.
     """
     output_dir = os.path.join("static", "output_xmind")
     os.makedirs(output_dir, exist_ok=True)
     base_filename = generate_base_filename()
 
-    # Ghi nội dung .xmindmark vào file tạm
+    # Ghi nội dung XMindMark vào file tạm
     temp_dir = tempfile.mkdtemp()
     xmindmark_file = os.path.join(temp_dir, f"{base_filename}.xmindmark")
     with open(xmindmark_file, 'w', encoding='utf-8') as f:
         f.write(xmindmark_content)
 
-    # Gọi CLI xmindmark, cwd là output_dir
+    # Gọi CLI xmindmark
     subprocess.run(
         ['xmindmark', xmindmark_file],
         cwd=output_dir,
@@ -71,10 +72,15 @@ def xmindmark_to_xmind_file(xmindmark_content: str) -> str | None:
         timeout=10
     )
 
-    # Tìm file .xmind được tạo ra
-    xmind_files = [f for f in os.listdir(output_dir) if f.endswith('.xmind')]
+    # Tìm file .xmind mới nhất trong output_dir
+    xmind_files = [
+        os.path.join(output_dir, f)
+        for f in os.listdir(output_dir)
+        if f.endswith('.xmind')
+    ]
+
     if not xmind_files:
         return None
-    
-    xmind_file_path = os.path.join(output_dir, xmind_files[0])
-    return f"/{xmind_file_path}"
+
+    latest_file = max(xmind_files, key=os.path.getmtime)
+    return f"/{latest_file}"

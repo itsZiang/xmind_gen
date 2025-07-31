@@ -9,7 +9,7 @@ def decide_split(state: DocumentState) -> DocumentState:
 
 
 def split_into_chunks(state: DocumentState) -> DocumentState:
-    state["chunks"] = split_text(state["input_text"])
+    state["chunks"] = split_text(state["input_text"], state["user_requirements"])
     # THÊM: Khởi tạo list rỗng
     state["xmindmark_chunks_content"] = []
     return state
@@ -45,10 +45,10 @@ def generate_xmindmark_direct(state: DocumentState) -> DocumentState:
 
 
 def merge_all_xmindmarks(state: DocumentState) -> DocumentState:
-    state["xmindmark_final"] = merge_xmindmarks(state["xmindmark_chunks_content"], state["global_title"])
+    state["xmindmark_final"] = merge_xmindmarks(state["xmindmark_chunks_content"], state["global_title"], state["user_requirements"])
     return state
 
 
 def generate_global_title_node(state: DocumentState) -> DocumentState:
-    state["global_title"] = generate_global_title(state["input_text"])
+    state["global_title"] = generate_global_title(state["input_text"], state["user_requirements"])
     return state

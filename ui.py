@@ -34,7 +34,7 @@ with st.sidebar:
     if st.button("🚀 Tạo mind map") and user_requirements and text:
         with st.spinner("Đang tạo mind map..."):
             try:
-                res = requests.post(f"{API_BASE_URL}/generate-xmindmark", json={
+                res = requests.post(f"{API_BASE_URL}/generate-xmindmark-langgraph", json={
                     "text": text,
                     "user_requirements": user_requirements
                 })
@@ -199,24 +199,27 @@ if st.session_state.get("edited_xmindmark"):
             except Exception as e:
                 st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
 
+
     with col_dl2:
         edited_content = st.session_state.get("edited_xmindmark")
+        prev_content = st.session_state.get("previous_edited_xmindmark")
 
-        if edited_content and "xmind_file_url" not in st.session_state:
+        # Nếu nội dung thay đổi hoặc chưa có file_url thì tạo lại file
+        if edited_content != prev_content or "xmind_file_url" not in st.session_state:
             try:
-                # Gọi API để tạo file XMind ngay khi có nội dung
                 res = requests.post(f"{API_BASE_URL}/to-xmind", json={
                     "content": edited_content
                 })
                 if res.status_code == 200:
                     xmind_file_url = res.json()["xmind_file"]
                     st.session_state["xmind_file_url"] = xmind_file_url
+                    st.session_state["previous_edited_xmindmark"] = edited_content  # cập nhật bản ghi
                 else:
                     st.error("❌ Không tạo được file .xmind")
             except Exception as e:
                 st.error(f"❌ Lỗi khi tạo file XMind: {str(e)}")
 
-        # Nếu file đã sẵn sàng, hiển thị nút tải
+        # Hiển thị nút tải file
         xmind_file_url = st.session_state.get("xmind_file_url")
         if xmind_file_url:
             try:
