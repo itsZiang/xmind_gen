@@ -5,9 +5,9 @@ from operator import add
 
 class DocumentState(TypedDict):
     input_text: str
+    user_requirements: str
+    need_split: bool
     chunks: List[str]
     xmindmark_chunks_content: Annotated[List[str], add]
-    xmindmark_full_content: str
-    need_split: bool
-    
-
+    xmindmark_final: str
+    global_title: str

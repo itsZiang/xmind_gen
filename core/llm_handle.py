@@ -1,7 +1,7 @@
 from core.llm_provider import LLMProvider
 import os
 from dotenv import load_dotenv
-from core.prompt import create_xmindmark_prompt
+from core.prompt import create_xmindmark_prompt, create_split_text_prompt, create_global_title_prompt
 
 load_dotenv()
 
@@ -10,13 +10,23 @@ BASE_URL = os.getenv("BASE_URL", None)
 MODEL = "gpt-4.1"
 PROVIDER = "openai"
 llm_provider = LLMProvider()
+if BASE_URL:
+    llm_provider.initialize_client(BASE_URL, PROVIDER, API_KEY)
 
 def generate_xmindmark(text: str, user_requirements: str) -> str:
     """Xử lý văn bản bằng LLM và trả về nội dung XMindMark"""
-    if not BASE_URL:
-        raise ValueError("BASE_URL is required but not set")
-    llm_provider.initialize_client(BASE_URL, PROVIDER, API_KEY)
     prompt = create_xmindmark_prompt(text, user_requirements)
     result = llm_provider.call_llm(prompt, MODEL)
     return result
 
+
+def generate_title_text(text: str) -> str:
+    prompt = create_split_text_prompt(text)
+    result = llm_provider.call_llm(prompt, MODEL)
+    return result
+
+
+def generate_global_title(text: str) -> str:
+    prompt = create_global_title_prompt(text)
+    result = llm_provider.call_llm(prompt, MODEL)
+    return result

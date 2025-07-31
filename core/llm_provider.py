@@ -36,7 +36,7 @@ class LLMProvider:
                 raise Exception(f"Lỗi khi lấy danh sách model g4f: {str(e)}")
         return []
 
-    def call_llm(self, prompt: str, model: str = "gpt-4.1-mini") -> str:
+    def call_llm(self, prompt: str, model: str = "gpt-4.1") -> str:
         """Gọi LLM"""
         if not self.client:
             return "Client LLM chưa được khởi tạo."
