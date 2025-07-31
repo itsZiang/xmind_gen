@@ -5,7 +5,7 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 
-def check_need_split(text: str, max_length: int = 2000) -> bool:
+def check_need_split(text: str, max_length: int = 20) -> bool:
     return len(text) > max_length
 
 
