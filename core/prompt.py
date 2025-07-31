@@ -134,6 +134,7 @@ def create_edit_prompt(current_xmindmark: str, edit_request: str) -> str:  # Xó
     - Mỗi nút chỉ nên là từ khóa hoặc cụm từ ngắn, không phải câu dài
     - Đảm bảo cấu trúc phân cấp hợp lý (root -> level 1 -> level 2...)
     - Trả về CHỈ nội dung XMindMark được chỉnh sửa, không có giải thích hay văn bản khác
+    - TUYỆT ĐỐI không dùng các ký tự thừa như ```, ```json, ```python, ...
    
     VÍ DỤ FORMAT ĐÚNG:
     Tiêu đề bản đồ tư duy

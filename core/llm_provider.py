@@ -1,67 +1,30 @@
-from openai import OpenAI
-import g4f
-from typing import List
+from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+import os
 
-class LLMProvider:
-    """Lớp quản lý LLM"""
-    def __init__(self):
-        self.client = None
-        self.provider = None
+load_dotenv()
 
-    def initialize_client(self, base_url: str, provider: str, api_key: str | None = None):
-        """Khởi tạo client cho provider được chọn"""
-        self.provider = provider
-        try:
-            if provider == "openai":
-                if not api_key:
-                    raise ValueError("API Key is required for OpenAI")
-                self.client = OpenAI(
-                    base_url=base_url,
-                    api_key=api_key,
-                    default_headers={"App-Code": "fresher"}
-                )
-            elif provider == "g4f":
-                self.client = g4f
-        except Exception as e:
-            raise Exception(f"Lỗi khởi tạo {provider}: {str(e)}")
+API_KEY = os.getenv("API_KEY", None)
+BASE_URL = os.getenv("BASE_URL", None)
 
-    def get_available_models(self) -> List[str]:
-        """Lấy danh sách model có sẵn cho provider"""
-        if self.provider == "openai":
-            return ["gpt-4.1", "gpt-4.1-mini", "misa-qwen3-30b", "misa-qwen3-235b", "misa-internvl3-38b", "omni-moderation-latest"]
-        elif self.provider == "g4f":
-            try:
-                return [model.replace('_', '-') for model in dir(g4f.models) if not model.startswith('_')]
-            except Exception as e:
-                raise Exception(f"Lỗi khi lấy danh sách model g4f: {str(e)}")
-        return []
+misa_llm = ChatOpenAI(
+    # model="misa-qwen3-30b",
+    model="misa-qwen3-235b",
+    base_url=BASE_URL,
+    api_key=API_KEY,
+    default_headers={
+        "App-Code": "fresher"
+    },
+    max_tokens=1024,
+    temperature=0.7,
+    extra_body={
+        "service": "test-aiservice.misa.com.vn",
+        "chat_template_kwargs": {            
+            "enable_thinking": False
+        }
+    }
+)
 
-    def call_llm(self, prompt: str, model: str = "gpt-4.1") -> str:
-        """Gọi LLM"""
-        if not self.client:
-            return "Client LLM chưa được khởi tạo."
-        try:
-            if self.provider == "openai":
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=15000,
-                    temperature=0.5
-                )
-                return response.choices[0].message.content.strip()
-            elif self.provider == "g4f":
-                response = self.client.ChatCompletion.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=15000,
-                    temperature=0.5
-                )
-                if isinstance(response, str):
-                    return response.strip()
-                elif hasattr(response, 'choices') and response.choices:
-                    return response.choices[0].message.content.strip()
-                else:
-                    raise Exception(f"Phản hồi g4f không đúng định dạng: {response}")
-        except Exception as e:
-            return f"Lỗi {self.provider}: {str(e)}"
-        return "Không thể xử lý yêu cầu."
+llm = ChatOpenAI(
+    model="gpt-4.1-mini",
+)

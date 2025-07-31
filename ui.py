@@ -2,12 +2,43 @@ import streamlit as st
 import requests
 from core.text_processing import extract_text_from_file
 from io import BytesIO
-import cairosvg
 
 API_BASE_URL = "http://localhost:8000/api"
 
 st.set_page_config(page_title="XMind Generator", layout="wide")
 st.title("🧠 Tạo Mind Map Tự Động")
+
+def get_stream_response(text, user_requirements):
+    """Get streaming response from the API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark-langgraph-stream",
+            json={"text": text, "user_requirements": user_requirements},
+            stream=True
+        )
+        response.raise_for_status()
+        
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+    except Exception as e:
+        raise e
+
+def get_edit_stream_response(current_xmindmark, edit_request):
+    """Get streaming response from the edit API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/edit-xmindmark",
+            json={"current_xmindmark": current_xmindmark, "edit_request": edit_request},
+            stream=True
+        )
+        response.raise_for_status()
+        
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+    except Exception as e:
+        raise e
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -32,126 +63,182 @@ with st.sidebar:
         text = None
 
     if st.button("🚀 Tạo mind map") and user_requirements and text:
-        with st.spinner("Đang tạo mind map..."):
-            try:
-                res = requests.post(f"{API_BASE_URL}/generate-xmindmark-langgraph", json={
-                    "text": text,
-                    "user_requirements": user_requirements
-                })
-                
-                if res.status_code == 200:
-                    try:
-                        response_data = res.json()
-                        xmindmark = response_data["xmindmark"]
-                        st.session_state["xmindmark"] = xmindmark
-                        st.session_state["edited_xmindmark"] = xmindmark
-
-                        # Gọi thêm /to-svg để lấy ảnh SVG
-                        svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={"content": xmindmark})
-                        if svg_res.status_code == 200:
-                            try:
-                                svg_data = svg_res.json()
-                                svg_url = svg_data.get("svg_url")
-                                st.session_state["svg_url"] = svg_url
-                                st.success("✅ Mind map đã tạo và hiển thị!")
-                            except Exception as e:
-                                st.error(f"❌ Lỗi đọc SVG JSON: {e}\nResponse: {svg_res.text}")
-                        else:
-                            st.error(f"❌ Không tạo được SVG: {svg_res.status_code}\nResponse: {svg_res.text}")
-                    except Exception as e:
-                        st.error(f"❌ Lỗi đọc JSON response: {e}\nResponse: {res.text}")
-                else:
-                    st.error(f"❌ Gọi API thất bại! Status: {res.status_code}\nResponse: {res.text}")
-            except Exception as e:
-                st.error(f"❌ Lỗi kết nối API: {str(e)}")
+        # Reset session state for new generation
+        if "xmindmark" in st.session_state:
+            del st.session_state["xmindmark"]
+        if "edited_xmindmark" in st.session_state:
+            del st.session_state["edited_xmindmark"]
+        if "svg_url" in st.session_state:
+            del st.session_state["svg_url"]
+        
+        st.session_state["generating"] = True
+        st.rerun()
 
 # --- MAIN DISPLAY ---
 col1, col2 = st.columns([2, 1])
 
 # --- Chỉnh sửa nội dung ---
 with col2:
-    st.subheader("📄 Chỉnh sửa XMindMark")
-   
-    st.markdown("### 🤖 Chỉnh sửa bằng AI")
-    with st.form(key="llm_edit_form", clear_on_submit=True):
-        edit_request = st.text_area(
-            "Yêu cầu chỉnh sửa:",
-            placeholder="Ví dụ:\n- Thêm chi tiết cho nhánh 'Phương pháp'\n- Xóa nhánh không cần thiết\n- Sắp xếp lại cấu trúc theo thứ tự logic\n- Rút gọn các từ khóa quá dài",
-            height=100,
-            key="edit_request_input"
-        )
-       
-        col_edit_btn, col_edit_info = st.columns([1, 2])
-        with col_edit_btn:
-            edit_with_llm = st.form_submit_button("✨ Chỉnh sửa bằng AI", type="secondary")
-        with col_edit_info:
-            st.caption("💡 AI sẽ chỉnh sửa theo yêu cầu của bạn")
-   
-    if edit_with_llm and edit_request.strip():
-        with st.spinner("🤖 AI đang chỉnh sửa XMindMark..."):
+    st.subheader("📄 Nội dung XMindMark")
+    
+    # Handle streaming generation
+    if st.session_state.get("generating", False):
+        st.markdown("### 🤖 Đang tạo XMindMark...")
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        try:
+            # Get streaming response
+            stream_response = get_stream_response(text, user_requirements)
+            
+            for chunk in stream_response:
+                full_response += chunk.decode("utf-8")
+                message_placeholder.markdown(f"```\n{full_response}▌\n```")
+            
+            # Final response without cursor
+            message_placeholder.markdown(f"```\n{full_response}\n```")
+            
+            # Store the generated content
+            st.session_state["xmindmark"] = full_response
+            st.session_state["edited_xmindmark"] = full_response
+            st.session_state["generating"] = False
+            
+            # Generate SVG
             try:
-                edit_response = requests.post(f"{API_BASE_URL}/edit-xmindmark", json={
-                    "current_xmindmark": st.session_state.get("xmindmark", ""),
-                    "edit_request": edit_request
-                })
-                
-                if edit_response.status_code == 200:
+                svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={"content": full_response})
+                if svg_res.status_code == 200:
+                    svg_data = svg_res.json()
+                    svg_url = svg_data.get("svg_url")
+                    st.session_state["svg_url"] = svg_url
+                    st.success("✅ Mind map đã tạo và hiển thị!")
+                else:
+                    st.error(f"❌ Không tạo được SVG: {svg_res.status_code}")
+            except Exception as e:
+                st.error(f"❌ Lỗi tạo SVG: {str(e)}")
+            
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"❌ Lỗi kết nối API: {str(e)}")
+            st.session_state["generating"] = False
+    
+    # Handle AI editing streaming
+    elif st.session_state.get("editing_with_ai", False):
+        st.markdown("### 🤖 AI đang chỉnh sửa XMindMark...")
+        edit_placeholder = st.empty()
+        full_edit_response = ""
+        
+        try:
+            # Get streaming edit response
+            edit_stream = get_edit_stream_response(
+                st.session_state.get("xmindmark", ""),
+                st.session_state.get("edit_request", "")
+            )
+            
+            for chunk in edit_stream:
+                full_edit_response += chunk.decode("utf-8")
+                edit_placeholder.markdown(f"```\n{full_edit_response}▌\n```")
+            
+            # Final response without cursor
+            edit_placeholder.markdown(f"```\n{full_edit_response}\n```")
+            
+            # Store the edited content
+            st.session_state["edited_xmindmark"] = full_edit_response
+            st.session_state["editing_with_ai"] = False
+            
+            # Generate new SVG
+            try:
+                svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={"content": full_edit_response})
+                if svg_res.status_code == 200:
+                    svg_data = svg_res.json()
+                    svg_url = svg_data.get("svg_url")
+                    st.session_state["svg_url"] = svg_url
+                    st.success("✅ AI đã chỉnh sửa thành công!")
+                else:
+                    st.error(f"❌ Không tạo được SVG: {svg_res.status_code}")
+            except Exception as e:
+                st.error(f"❌ Lỗi tạo SVG: {str(e)}")
+            
+            # Clean up edit request from session state
+            if "edit_request" in st.session_state:
+                del st.session_state["edit_request"]
+            
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"❌ Lỗi kết nối API: {str(e)}")
+            st.session_state["editing_with_ai"] = False
+            if "edit_request" in st.session_state:
+                del st.session_state["edit_request"]
+    
+    # Show generated content and editing options
+    elif st.session_state.get("xmindmark"):
+        # Display current XMindMark content (read-only with manual edit option)
+        xmindmark = st.session_state.get("edited_xmindmark")
+        
+        # Display content in a code block for better readability
+        st.code(xmindmark, language="markdown")
+        
+        # Option to manually edit
+        if st.button("✏️ Chỉnh sửa thủ công"):
+            st.session_state["manual_editing"] = True
+            st.rerun()
+        
+        # Manual editing mode
+        if st.session_state.get("manual_editing", False):
+            st.markdown("### ✏️ Chỉnh sửa thủ công")
+            edited = st.text_area("Chỉnh sửa nội dung", value=xmindmark, height=400)
+            
+            col_edit1, col_edit2 = st.columns(2)
+            with col_edit1:
+                if st.button("✔️ Xác nhận"):
+                    st.session_state["edited_xmindmark"] = edited
+                    st.session_state["manual_editing"] = False
                     try:
-                        edit_data = edit_response.json()
-                        edited_content = edit_data.get("edited_xmindmark", "")
-                        
-                        if edited_content and edited_content != st.session_state.get("edited_xmindmark", ""):
-                            st.session_state["edited_xmindmark"] = edited_content
-                            
-                            # Cập nhật SVG
-                            svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={
-                                "content": edited_content
-                            })
-                            if svg_res.status_code == 200:
-                                try:
-                                    svg_data = svg_res.json()
-                                    svg_url = svg_data.get("svg_url")
-                                    st.session_state["svg_url"] = svg_url
-                                    st.success("✅ AI đã chỉnh sửa thành công!")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"❌ Lỗi đọc SVG JSON: {e}")
-                            else:
-                                st.error(f"❌ Không tạo được SVG: {svg_res.status_code}")
+                        res = requests.post(f"{API_BASE_URL}/to-svg", json={
+                            "content": edited
+                        })
+                        if res.status_code == 200:
+                            try:
+                                svg_data = res.json()
+                                svg_url = svg_data.get("svg_url")
+                                st.session_state["svg_url"] = svg_url
+                                st.success("✅ Đã cập nhật hình ảnh!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Lỗi đọc JSON: {e}\nResponse: {res.text}")
                         else:
-                            st.info("ℹ️ Không có thay đổi nào được thực hiện.")
+                            st.error(f"❌ Lỗi chuyển SVG: {res.status_code}\nResponse: {res.text}")
                     except Exception as e:
-                        st.error(f"❌ Lỗi đọc JSON response: {e}\nResponse: {edit_response.text}")
-                else:
-                    st.error(f"❌ Lỗi chỉnh sửa: {edit_response.status_code}\nResponse: {edit_response.text}")
-            except Exception as e:
-                st.error(f"❌ Lỗi kết nối API: {str(e)}")
-    elif edit_with_llm and not edit_request.strip():
-        st.warning("⚠️ Vui lòng nhập yêu cầu chỉnh sửa.")
-   
-    st.divider()
-    st.subheader("📝 Nội dung XMindMark")
-    xmindmark = st.session_state.get("edited_xmindmark")
-    if xmindmark:
-        edited = st.text_area("Chỉnh sửa nội dung", value=xmindmark, height=400)
-        if st.button("✔️ Xác nhận chỉnh sửa"):
-            st.session_state["edited_xmindmark"] = edited
-            try:
-                res = requests.post(f"{API_BASE_URL}/to-svg", json={
-                    "content": edited
-                })
-                if res.status_code == 200:
-                    try:
-                        svg_data = res.json()
-                        svg_url = svg_data.get("svg_url")
-                        st.session_state["svg_url"] = svg_url
-                        st.success("✅ Đã cập nhật hình ảnh!")
-                    except Exception as e:
-                        st.error(f"❌ Lỗi đọc JSON: {e}\nResponse: {res.text}")
-                else:
-                    st.error(f"❌ Lỗi chuyển SVG: {res.status_code}\nResponse: {res.text}")
-            except Exception as e:
-                st.error(f"❌ Lỗi kết nối API: {str(e)}")
+                        st.error(f"❌ Lỗi kết nối API: {str(e)}")
+            
+            with col_edit2:
+                if st.button("❌ Hủy"):
+                    st.session_state["manual_editing"] = False
+                    st.rerun()
+       
+        st.divider()
+        st.markdown("### 🤖 Chỉnh sửa bằng AI")
+        with st.form(key="llm_edit_form", clear_on_submit=True):
+            edit_request = st.text_area(
+                "Yêu cầu chỉnh sửa:",
+                placeholder="Ví dụ:\n- Thêm chi tiết cho nhánh 'Phương pháp'\n- Xóa nhánh không cần thiết\n- Sắp xếp lại cấu trúc theo thứ tự logic\n- Rút gọn các từ khóa quá dài",
+                height=160,
+                key="edit_request_input"
+            )
+           
+            edit_with_llm = st.form_submit_button("✨ Chỉnh sửa bằng AI", type="secondary")
+       
+        if edit_with_llm and edit_request.strip():
+            # Store edit request in session state and start editing
+            st.session_state["edit_request"] = edit_request
+            st.session_state["editing_with_ai"] = True
+            st.rerun()
+        elif edit_with_llm and not edit_request.strip():
+            st.warning("⚠️ Vui lòng nhập yêu cầu chỉnh sửa.")
+        
+    else:
+        st.info("🎯 Vui lòng tải lên tài liệu và nhập yêu cầu để bắt đầu tạo mind map.")
 
 # --- Hiển thị SVG ---
 with col1:
@@ -176,9 +263,13 @@ with col1:
                 st.error(f"❌ Không thể tải SVG từ server: {svg_response.status_code}")
         except Exception as e:
             st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
+    elif st.session_state.get("generating", False) or st.session_state.get("editing_with_ai", False):
+        st.info("⏳ Đang xử lý sơ đồ mind map...")
+    else:
+        st.info("📋 Sơ đồ mind map sẽ hiển thị ở đây sau khi tạo.")
 
 # --- Nút tải về ---
-if st.session_state.get("edited_xmindmark"):
+if st.session_state.get("edited_xmindmark") and not st.session_state.get("generating", False) and not st.session_state.get("editing_with_ai", False):
     st.markdown("---")
     col_dl1, col_dl2 = st.columns(2)
 
@@ -198,7 +289,6 @@ if st.session_state.get("edited_xmindmark"):
                     st.error("❌ Không thể tải ảnh SVG.")
             except Exception as e:
                 st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
-
 
     with col_dl2:
         edited_content = st.session_state.get("edited_xmindmark")

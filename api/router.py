@@ -1,7 +1,8 @@
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from core.llm_handle import generate_xmindmark, edit_xmindmark_with_llm
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
-from core.graph import generate_xmindmark_langgraph
+from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -20,9 +21,9 @@ class EditXMindMarkRequest(BaseModel):
     
     
 @router.post("/edit-xmindmark", tags=["input"])
-async def edit_xmindmark_api(request: EditXMindMarkRequest):
-    edited_xmindmark = edit_xmindmark_with_llm(request.current_xmindmark, request.edit_request)
-    return {"edited_xmindmark": edited_xmindmark}
+async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse:
+    response = edit_xmindmark_with_llm(request.current_xmindmark, request.edit_request)
+    return StreamingResponse(response, media_type="text/event-stream")
 
 
 @router.post("/generate-xmindmark", tags=["input"])
@@ -35,6 +36,12 @@ async def generate_xmindmark_api(request: GenerateXMindMarkRequest):
 async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkRequest):
     xmindmark = generate_xmindmark_langgraph(request.text, request.user_requirements)
     return {"xmindmark": xmindmark}
+
+
+@router.post("/generate-xmindmark-langgraph-stream", tags=["input"])
+async def generate_xmindmark_langgraph_stream_api(request: GenerateXMindMarkRequest):
+    response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
+    return StreamingResponse(response, media_type="text/event-stream")
 
 
 @router.post("/to-svg", tags=["output"])
