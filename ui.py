@@ -31,7 +31,7 @@ with st.sidebar:
 
     if st.button("🚀 Tạo mind map") and user_requirements and text:
         with st.spinner("Đang tạo mind map..."):
-            res = requests.post(f"{API_BASE_URL}/generate-xmindmark", json={
+            res = requests.post(f"{API_BASE_URL}/generate-xmindmark-langgraph", json={
                 "text": text,
                 "user_requirements": user_requirements
             })

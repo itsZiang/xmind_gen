@@ -14,41 +14,57 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
       - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
     - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng.
     Ví dụ:
-    ông nội (root node)
-    - cha1 (node cha)
-      - con1 (node con)
-        - con1.1
-      - con2 (node con)
-    - cha2 (node cha)
-      - con1 (node con)
-      - con2 (node con)
+    ông nội 
+    - cha1
+        - con1
+            - con1.1
+        - con2
+    - cha2
+        - con1
+        - con2
     """
     return prompt
   
 
-def create_split_text_prompt(text: str) -> str:
-    prompt = f"""
-You are given a long document. Your task is to identify the **main section titles or headings** that can be used to split the text into smaller chunks.
+# def create_split_text_prompt(text: str) -> str:
+#     prompt = f"""
+# You are given a long document. Your task is to identify the **main section titles or headings** that can be used to split the text into smaller chunks.
 
-**Requirements:**
-- Only return headings that **exactly appear** in the text.
-- Return only the **text of those headings**, no explanation.
-- Do not modify or paraphrase the headings.
-- The output must be a Python list of strings.
+# **Requirements:**
+# - Only return headings that **exactly appear** in the text.
+# - Return only the **text of those headings**, no explanation.
+# - Do not modify or paraphrase the headings.
+# - The output must be a Python list of strings.
 
-Here is the document:
+# Here is the document:
 
-{text}
+# {text}
 
-Now return the list of headings (as they appear in the document) that can be used to split it.
-    """
-    return prompt
+# Now return the list of headings (as they appear in the document) that can be used to split it.
+#     """
+#     return prompt
   
 
-def generate_root_title_prompt(text: str) -> str:
+def create_global_title_prompt(text: str) -> str:
     return f"""
 Given the following document, suggest a super short (for the whole mind map) title, general **title** that best represents the entire content.
 Return only the title (do not include explanation or formatting):
 
 {text}
     """
+    
+def create_split_text_prompt(text: str) -> str:
+    prompt = f"""
+Bạn là một trợ lý AI đang xử lý một tài liệu để tạo sơ đồ tư duy.
+
+Hãy chia văn bản sau thành các đoạn riêng biệt, mỗi đoạn tương ứng với **một ý chính** trong tài liệu. 
+Nếu đoạn quá dài, bạn có thể tóm tắt nó lại sao cho ngắn gọn mà vẫn đủ ý.
+Cố gắng chia văn bản thành các đoạn lớn nhất có thể, bao gồm ý tổng quát nhất có thể.
+
+Trả về kết quả dưới dạng danh sách các đoạn, ví dụ: ["Đoạn 1", "Đoạn 2", "Đoạn 3"]
+
+--- BẮT ĐẦU VĂN BẢN ---
+{text}
+--- KẾT THÚC VĂN BẢN ---
+"""
+    return prompt

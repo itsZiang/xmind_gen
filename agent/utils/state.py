@@ -8,6 +8,7 @@ class DocumentState(TypedDict):
     user_requirements: str
     need_split: bool
     chunks: List[str]
-    xmindmark_chunks_content: Annotated[List[str], add]
+    # xmindmark_chunks_content: Annotated[List[str], add]
+    xmindmark_chunks_content: List[str]
     xmindmark_final: str
     global_title: str

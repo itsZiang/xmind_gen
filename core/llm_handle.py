@@ -20,13 +20,19 @@ def generate_xmindmark(text: str, user_requirements: str) -> str:
     return result
 
 
-def generate_title_text(text: str) -> str:
-    prompt = create_split_text_prompt(text)
-    result = llm_provider.call_llm(prompt, MODEL)
-    return result
+# def find_title_text(text: str) -> str:
+#     prompt = create_split_text_prompt(text)
+#     result = llm_provider.call_llm(prompt, MODEL)
+#     return result
 
 
 def generate_global_title(text: str) -> str:
     prompt = create_global_title_prompt(text)
+    result = llm_provider.call_llm(prompt, MODEL)
+    return result
+
+
+def split_text_with_llm(text: str) -> str:
+    prompt = create_split_text_prompt(text)
     result = llm_provider.call_llm(prompt, MODEL)
     return result
