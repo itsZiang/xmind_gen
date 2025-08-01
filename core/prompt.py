@@ -12,7 +12,7 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
       - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
       - Nhánh phụ thụt đầu dòng bằng dấu "- " (dấu trừ và khoảng trắng).
       - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
-    - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng.
+    - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
     Ví dụ:
     ông nội 
     - cha1
@@ -178,7 +178,6 @@ Hãy tạo một sơ đồ tư duy hoàn chỉnh bằng cách:
 - Level 4: Bắt đầu với "      - " (6 spaces + dash)
 
 **VÍ DỤ ĐỊNH DẠNG:**
-```
 Tiêu Đề Chính
 - Nhánh chính 1
   - Nhánh phụ 1.1
@@ -187,13 +186,14 @@ Tiêu Đề Chính
   - Nhánh phụ 1.2
 - Nhánh chính 2
   - Nhánh phụ 2.1
-```
 
 **LƯU Ý:**
 - Ưu tiên nội dung phù hợp với yêu cầu người dùng
 - Đảm bảo mind map dễ đọc và logic
 - Tránh quá nhiều level (tối đa 4-5 level)
 - Sử dụng từ ngữ ngắn gọn, dễ hiểu
+- Trả về CHỈ nội dung XMindMark được chỉnh sửa, không có giải thích hay văn bản khác
+- TUYỆT ĐỐI không dùng các ký tự thừa như ```, ```json, ```python, ...
 
 Hãy trả về sơ đồ tư duy hoàn chỉnh:
 """
