@@ -6,7 +6,7 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
     VĂN BẢN CẦN PHÂN TÍCH:
     {text}
     HƯỚNG DẪN:
-    - Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu.
+    - Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu. Nếu người dùng không yêu cầu, hãy tạo sơ đồ với lượng thông tin, số lượng nhánh một cách cô đọng và cốt lõi, tương ứng với domain mà người dùng đang quan tâm, đừng quá dài dòng gây rối, đặc biệt là những nhánh lớn.
     - Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
     - Sử dụng định dạng xmindmark:
       - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
@@ -25,24 +25,6 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
     """
     return prompt
   
-
-# def create_split_text_prompt(text: str) -> str:
-#     prompt = f"""
-# You are given a long document. Your task is to identify the **main section titles or headings** that can be used to split the text into smaller chunks.
-
-# **Requirements:**
-# - Only return headings that **exactly appear** in the text.
-# - Return only the **text of those headings**, no explanation.
-# - Do not modify or paraphrase the headings.
-# - The output must be a Python list of strings.
-
-# Here is the document:
-
-# {text}
-
-# Now return the list of headings (as they appear in the document) that can be used to split it.
-#     """
-#     return prompt
   
 
 def create_global_title_prompt(text: str, user_requirements: str) -> str:
@@ -150,7 +132,7 @@ def create_edit_prompt(current_xmindmark: str, edit_request: str) -> str:  # Xó
 
 def create_merge_xmindmark_prompt(chunks_text: str, global_title: str, user_requirements: str) -> str:
     prompt = f"""
-Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là hợp nhất các phần sơ đồ riêng lẻ thành một sơ đồ tư duy hoàn chỉnh, mạch lạc và tối ưu.
+Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là hợp nhất các phần sơ đồ riêng lẻ thành một sơ đồ tư duy hoàn chỉnh, mạch lạc và tối ưu. Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu. Nếu người dùng không yêu cầu, hãy tạo sơ đồ với lượng thông tin, số lượng nhánh một cách cô đọng và cốt lõi, tương ứng với domain mà người dùng đang quan tâm, đừng quá dài dòng gây rối, đặc biệt là những nhánh lớn.
 
 **YÊU CẦU CỦA NGƯỜI DÙNG:**
 {user_requirements}
@@ -207,7 +189,7 @@ Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là tạ
 **YÊU CẦU CỦA NGƯỜI DÙNG:**
 {user_requirements}
 HƯỚNG DẪN:
-- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu.
+- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu. Nếu người dùng không yêu cầu, hãy tạo sơ đồ với lượng thông tin, số lượng nhánh một cách cô đọng và cốt lõi, tương ứng với domain mà người dùng đang quan tâm, đừng quá dài dòng gây rối, đặc biệt là những nhánh lớn.
 - Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
 - Sử dụng định dạng xmindmark:
     - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
@@ -237,7 +219,7 @@ Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là tạ
 **YÊU CẦU CỦA NGƯỜI DÙNG:**
 {user_requirements}
 HƯỚNG DẪN:
-- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu.
+- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu. Nếu người dùng không yêu cầu, hãy tạo sơ đồ với lượng thông tin, số lượng nhánh một cách cô đọng và cốt lõi, tương ứng với domain mà người dùng đang quan tâm, đừng quá dài dòng gây rối, đặc biệt là những nhánh lớn.
 - Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
 - Sử dụng định dạng xmindmark:
     - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
