@@ -8,8 +8,40 @@ API_BASE_URL = "http://localhost:8000/api"
 st.set_page_config(page_title="XMind Generator", layout="wide")
 st.title("🧠 Tạo Mind Map Tự Động")
 
-def get_stream_response(text, user_requirements):
-    """Get streaming response from the API"""
+def get_stream_response_no_docs(user_requirements):
+    """Get streaming response from the no-docs API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark-no-docs",
+            json={"user_requirements": user_requirements},
+            stream=True
+        )
+        response.raise_for_status()
+        
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+    except Exception as e:
+        raise e
+
+def get_stream_response_with_search(user_requirements):
+    """Get streaming response from the search API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark-with-search",
+            json={"user_requirements": user_requirements},
+            stream=True
+        )
+        response.raise_for_status()
+        
+        for chunk in response.iter_content(chunk_size=1024):
+            if chunk:
+                yield chunk
+    except Exception as e:
+        raise e
+
+def get_stream_response_with_docs(text, user_requirements):
+    """Get streaming response from the documents API"""
     try:
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark-langgraph-stream",
@@ -42,36 +74,83 @@ def get_edit_stream_response(current_xmindmark, edit_request):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("📌 Nhập yêu cầu & tài liệu")
+    st.header("📌 Nhập yêu cầu & tùy chọn")
 
+    # User requirements - always visible
     user_requirements = st.text_area("Yêu cầu của bạn", height=150)
 
-    uploaded_file = st.file_uploader(
-        "📄 Tải lên file tài liệu",
-        type=['pdf', 'docx', 'md'],
-        help="Chọn file PDF, DOCX hoặc MD để tóm tắt"
-    )
+    st.divider()
+    
+    # Toggle buttons for different modes
+    st.subheader("🔧 Tùy chọn tạo mindmap")
+    
+    # Upload file toggle
+    upload_mode = st.toggle("📄 Tải lên file tài liệu", value=False, help="Bật để tạo mindmap từ file tài liệu")
+    
+    # Search mode toggle  
+    search_mode = st.toggle("🔍 Tìm kiếm thông tin", value=False, help="Bật để tự động tìm kiếm thông tin trên internet")
+    
+    # File upload section - only show when upload_mode is enabled
+    uploaded_file = None
+    text = None
+    if upload_mode:
+        st.markdown("##### 📁 Chọn file")
+        uploaded_file = st.file_uploader(
+            "Tải lên file tài liệu",
+            type=['pdf', 'docx', 'md'],
+            help="Chọn file PDF, DOC X hoặc MD để tóm tắt",
+            label_visibility="collapsed"
+        )
 
-    if uploaded_file:
-        try:
-            text = extract_text_from_file(uploaded_file)
-            st.success("✅ Tải file thành công!")
-        except Exception as e:
-            st.error(f"❌ Lỗi xử lý file: {e}")
-            text = None
+        if uploaded_file:
+            try:
+                text = extract_text_from_file(uploaded_file)
+                st.success("✅ Tải file thành công!")
+            except Exception as e:
+                st.error(f"❌ Lỗi xử lý file: {e}")
+                text = None
+
+    # Mode indicator
+    st.divider()
+    if upload_mode and search_mode:
+        st.info("🔄 **Chế độ**: Tài liệu + Tìm kiếm")
+        current_mode = "docs_and_search"
+    elif upload_mode:
+        st.info("📄 **Chế độ**: Từ tài liệu")
+        current_mode = "docs_only"
+    elif search_mode:
+        st.info("🔍 **Chế độ**: Tìm kiếm")
+        current_mode = "search_only"
     else:
-        text = None
+        st.info("💭 **Chế độ**: Cơ bản")
+        current_mode = "basic"
 
-    if st.button("🚀 Tạo mind map") and user_requirements and text:
+    # Validation and generate button
+    can_generate = False
+    error_message = ""
+    
+    if not user_requirements.strip():
+        error_message = "⚠️ Vui lòng nhập yêu cầu"
+    elif upload_mode and not text:
+        error_message = "⚠️ Vui lòng tải lên file tài liệu"
+    else:
+        can_generate = True
+
+    if error_message:
+        st.warning(error_message)
+
+    # Single generate button
+    if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
         # Reset session state for new generation
-        if "xmindmark" in st.session_state:
-            del st.session_state["xmindmark"]
-        if "edited_xmindmark" in st.session_state:
-            del st.session_state["edited_xmindmark"]
-        if "svg_url" in st.session_state:
-            del st.session_state["svg_url"]
+        for key in ["xmindmark", "edited_xmindmark", "svg_url", "xmind_file_url", "previous_edited_xmindmark"]:
+            if key in st.session_state:
+                del st.session_state[key]
         
         st.session_state["generating"] = True
+        st.session_state["current_mode"] = current_mode
+        st.session_state["generation_text"] = text if upload_mode else None
+        st.session_state["generation_requirements"] = user_requirements
+        st.session_state["generation_search_mode"] = search_mode
         st.rerun()
 
 # --- MAIN DISPLAY ---
@@ -83,13 +162,36 @@ with col2:
     
     # Handle streaming generation
     if st.session_state.get("generating", False):
-        st.markdown("### 🤖 Đang tạo XMindMark...")
+        current_mode = st.session_state.get("current_mode", "basic")
+        
+        if current_mode == "docs_only":
+            st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu...")
+        elif current_mode == "search_only":
+            st.markdown("### 🤖 Đang tìm kiếm và tạo XMindMark...")
+        elif current_mode == "docs_and_search":
+            st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu + tìm kiếm...")
+        else:
+            st.markdown("### 🤖 Đang tạo XMindMark...")
+            
         message_placeholder = st.empty()
         full_response = ""
         
         try:
-            # Get streaming response
-            stream_response = get_stream_response(text, user_requirements)
+            # Choose the appropriate API endpoint based on mode
+            generation_text = st.session_state.get("generation_text")
+            generation_requirements = st.session_state.get("generation_requirements")
+            generation_search_mode = st.session_state.get("generation_search_mode", False)
+            
+            if current_mode == "docs_only":
+                stream_response = get_stream_response_with_docs(generation_text, generation_requirements)
+            elif current_mode == "search_only":
+                stream_response = get_stream_response_with_search(generation_requirements)
+            elif current_mode == "docs_and_search":
+                # For now, prioritize docs mode when both are enabled
+                # You might want to create a combined endpoint later
+                stream_response = get_stream_response_with_docs(generation_text, generation_requirements)
+            else:  # basic mode
+                stream_response = get_stream_response_no_docs(generation_requirements)
             
             for chunk in stream_response:
                 full_response += chunk.decode("utf-8")
@@ -238,7 +340,7 @@ with col2:
             st.warning("⚠️ Vui lòng nhập yêu cầu chỉnh sửa.")
         
     else:
-        st.info("🎯 Vui lòng tải lên tài liệu và nhập yêu cầu để bắt đầu tạo mind map.")
+        st.info("🎯 Vui lòng nhập yêu cầu và chọn tùy chọn phù hợp để bắt đầu tạo mind map.")
 
 # --- Hiển thị SVG ---
 with col1:

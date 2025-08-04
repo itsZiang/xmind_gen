@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from core.llm_handle import generate_xmindmark, edit_xmindmark_with_llm
+from core.llm_handle import generate_xmindmark, edit_xmindmark_with_llm, generate_xmindmark_no_docs, generate_xmindmark_with_search
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
 from pydantic import BaseModel
@@ -9,6 +9,14 @@ router = APIRouter()
 
 class GenerateXMindMarkRequest(BaseModel):
     text: str
+    user_requirements: str
+
+
+class GenerateXMindMarkNoDocsRequest(BaseModel):
+    user_requirements: str
+
+
+class GenerateXMindMarkWithSearchRequest(BaseModel):
     user_requirements: str
 
 
@@ -54,3 +62,15 @@ async def to_svg_api(xmindmark: XMindMark):
 async def to_xmind_api(xmindmark: XMindMark):
     xmind_file = xmindmark_to_xmind_file(xmindmark.content)
     return {"xmind_file": xmind_file}
+
+
+@router.post("/generate-xmindmark-no-docs", tags=["input"])
+async def generate_xmindmark_no_docs_api(request: GenerateXMindMarkNoDocsRequest):
+    response = generate_xmindmark_no_docs(request.user_requirements)
+    return StreamingResponse(response, media_type="text/event-stream")
+
+
+@router.post("/generate-xmindmark-with-search", tags=["input"])
+async def generate_xmindmark_with_search_api(request: GenerateXMindMarkWithSearchRequest):
+    response = generate_xmindmark_with_search(request.user_requirements)
+    return StreamingResponse(response, media_type="text/event-stream")

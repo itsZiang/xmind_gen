@@ -198,3 +198,60 @@ Tiêu Đề Chính
 Hãy trả về sơ đồ tư duy hoàn chỉnh:
 """
     return prompt
+
+
+def create_xmindmark_no_docs_prompt(user_requirements: str) -> str:
+    prompt = f"""
+Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là tạo một sơ đồ tư duy dựa trên yêu cầu của người dùng.
+
+**YÊU CẦU CỦA NGƯỜI DÙNG:**
+{user_requirements}
+HƯỚNG DẪN:
+- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu.
+- Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
+- Sử dụng định dạng xmindmark:
+    - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
+    - Nhánh phụ thụt đầu dòng bằng dấu "- " (dấu trừ và khoảng trắng).
+    - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
+- Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
+Ví dụ:
+ông nội 
+- cha1
+    - con1
+        - con1.1
+    - con2
+- cha2
+    - con1
+    - con2
+"""
+    return prompt
+
+
+def create_xmindmark_with_search_prompt(search_context: str, user_requirements: str) -> str:
+    prompt = f"""
+Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là tạo một sơ đồ tư duy dựa trên yêu cầu của người dùng và thông tin bổ sung. Thông tin bổ sung là những thông tin tìm kiếm trên internet, bạn sẽ nhận được những thông tin này từ tavily search, bao gồm raw_content của 3 kết quả tìm kiếm đầu tiên (các thông tin có thể bị giống nhau, hãy kết hợp một cách logic và đừng bị lặp lại), hãy dựa vào đó để kết hợp với yêu cầu của người dùng để tạo ra sơ đồ tư duy.
+
+**THÔNG TIN BỔ SUNG:**
+{search_context}
+
+**YÊU CẦU CỦA NGƯỜI DÙNG:**
+{user_requirements}
+HƯỚNG DẪN:
+- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu.
+- Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
+- Sử dụng định dạng xmindmark:
+    - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
+    - Nhánh phụ thụt đầu dòng bằng dấu "- " (dấu trừ và khoảng trắng).
+    - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
+- Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
+Ví dụ:
+ông nội 
+- cha1
+    - con1
+        - con1.1
+    - con2
+- cha2
+    - con1
+    - con2
+"""
+    return prompt
