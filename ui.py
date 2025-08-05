@@ -94,24 +94,27 @@ with st.sidebar:
     # Toggle buttons for different modes
     st.subheader("🔧 Tùy chọn tạo mindmap")
     
-    # Upload file toggle
-    upload_mode = st.toggle("📄 Tải lên file tài liệu", value=False, help="Bật để tạo mindmap từ file tài liệu")
-    
-    # Search mode toggle  
-    search_mode = st.toggle("🔍 Tìm kiếm thông tin", value=False, help="Bật để tự động tìm kiếm thông tin trên internet")
-    
-    # File upload section - only show when upload_mode is enabled
+       # Chọn chế độ duy nhất
+    mode = st.radio(
+        "Chọn chế độ tạo mindmap",
+        options=["basic", "docs", "search"],
+        format_func=lambda x: {
+            "basic": "💭 Cơ bản (không tài liệu)",
+            "docs": "📄 Từ tài liệu",
+            "search": "🔍 Tìm kiếm thông tin"
+        }[x],
+        help="Chỉ chọn một chế độ duy nhất"
+    )
     uploaded_file = None
     text = None
-    if upload_mode:
+    if mode == "docs":
         st.markdown("##### 📁 Chọn file")
         uploaded_file = st.file_uploader(
             "Tải lên file tài liệu",
             type=['pdf', 'docx', 'md'],
-            help="Chọn file PDF, DOC X hoặc MD để tóm tắt",
+            help="Chọn file PDF, DOCX hoặc MD để tóm tắt",
             label_visibility="collapsed"
         )
-
         if uploaded_file:
             try:
                 text = extract_text_from_file(uploaded_file)
@@ -122,45 +125,36 @@ with st.sidebar:
 
     # Mode indicator
     st.divider()
-    if upload_mode and search_mode:
-        st.info("🔄 **Chế độ**: Tài liệu + Tìm kiếm")
-        current_mode = "docs_and_search"
-    elif upload_mode:
+    if mode == "docs":
         st.info("📄 **Chế độ**: Từ tài liệu")
         current_mode = "docs_only"
-    elif search_mode:
+    elif mode == "search":
         st.info("🔍 **Chế độ**: Tìm kiếm")
         current_mode = "search_only"
     else:
         st.info("💭 **Chế độ**: Cơ bản")
         current_mode = "basic"
 
-    # Validation and generate button
+    # Validation
     can_generate = False
     error_message = ""
-    
     if not user_requirements.strip():
         error_message = "⚠️ Vui lòng nhập yêu cầu"
-    elif upload_mode and not text:
+    elif mode == "docs" and not text:
         error_message = "⚠️ Vui lòng tải lên file tài liệu"
     else:
         can_generate = True
 
-    if error_message:
-        st.warning(error_message)
-
     # Single generate button
     if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
-        # Reset session state for new generation
         for key in ["xmindmark", "edited_xmindmark", "svg_url", "xmind_file_url", "previous_edited_xmindmark"]:
             if key in st.session_state:
                 del st.session_state[key]
-        
         st.session_state["generating"] = True
         st.session_state["current_mode"] = current_mode
-        st.session_state["generation_text"] = text if upload_mode else None
+        st.session_state["generation_text"] = text if mode == "docs" else None
         st.session_state["generation_requirements"] = user_requirements
-        st.session_state["generation_search_mode"] = search_mode
+        st.session_state["generation_search_mode"] = (mode == "search")
         st.rerun()
 
 # --- MAIN DISPLAY ---
@@ -244,8 +238,9 @@ with col2:
             use_search = st.session_state.get("use_search_during_edit", False)
             original_req = st.session_state.get("generation_requirements", "")
 
+            current_xmindmark = st.session_state.get("edited_xmindmark", "")
             edit_stream = get_edit_stream_response(
-                st.session_state.get("xmindmark", ""),
+                current_xmindmark,
                 st.session_state.get("edit_request", ""),
                 use_search=use_search,
                 original_requirements=original_req

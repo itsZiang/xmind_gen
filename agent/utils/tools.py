@@ -1,5 +1,3 @@
-# agent/utils/tools.py
-
 from core.llm_handle import split_text_with_llm, merge_xmindmark_with_llm
 import logging
 from typing import List, Dict, Optional

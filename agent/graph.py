@@ -1,5 +1,3 @@
-# agent/graph.py
-
 from langgraph.graph import StateGraph, START, END
 from agent.utils.state import DocumentState
 from agent.utils.nodes import (

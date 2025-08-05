@@ -136,7 +136,18 @@ def create_edit_prompt(current_xmindmark: str, edit_request: str) -> str:  # Xó
     - Trả về CHỈ nội dung XMindMark được chỉnh sửa, không có giải thích hay văn bản khác
     - TUYỆT ĐỐI không dùng các ký tự thừa như ```, ```json, ```python, ...
    
-    VÍ DỤ FORMAT ĐÚNG:
+    **HƯỚNG DẪN CHI TIẾT:**
+1. **Chỉ thực hiện đúng yêu cầu**, không thêm, không bớt, không thay đổi nội dung không liên quan.
+2. Nếu yêu cầu "thêm nhánh C" → thêm nhánh C vào đúng vị trí phù hợp, **giữ nguyên A, B, D...**
+3. Nếu yêu cầu "xoá nhánh B" → chỉ xoá nhánh B và các nhánh con của nó, **giữ nguyên A, C, D...**
+4. Nếu yêu cầu "sửa tên nhánh A thành A1" → chỉ đổi tên, **giữ nguyên cấu trúc và nội dung con**.
+5. **Tuyệt đối không viết lại toàn bộ mind map**.
+6. Giữ nguyên định dạng XMindMark:
+   - Dòng đầu: tiêu đề gốc
+   - Level 1: "- Nhánh chính"
+   - Level 2: "  - Nhánh phụ"
+   - Level 3: "    - Chi tiết"
+       VÍ DỤ FORMAT ĐÚNG:
     Tiêu đề bản đồ tư duy
     - Nhánh chính 1
     \t- Nhánh phụ 1.1
@@ -144,6 +155,16 @@ def create_edit_prompt(current_xmindmark: str, edit_request: str) -> str:  # Xó
     \t- Nhánh phụ 1.2
     - Nhánh chính 2
     \t- Nhánh phụ 2.1
+7. Trả về **CHỈ nội dung XMindMark đã chỉnh sửa**, không giải thích, không cảnh báo.
+**VÍ DỤ:**
+Nếu yêu cầu: "Xoá nhánh 'Chi phí vận hành'"
+→ Chỉ xoá toàn bộ nhánh "Chi phí vận hành" và các nhánh con, giữ nguyên các nhánh khác.
+
+Nếu yêu cầu: "Thêm nhánh 'Phân tích rủi ro' dưới 'Kế hoạch'"
+→ Thêm đúng 1 nhánh mới, không thay đổi các nhánh khác.
+
+Hãy thực hiện chỉnh sửa và trả về XMindMark:
+
     """
     return prompt
 

@@ -4,6 +4,7 @@ from api.router import router
 from fastapi.staticfiles import StaticFiles
 from core.logging_config import setup_logging
 import os
+from datetime import datetime
 
 # Setup logging
 os.makedirs('logs', exist_ok=True)
