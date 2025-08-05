@@ -12,7 +12,7 @@ def get_stream_response_no_docs(user_requirements):
     """Get streaming response from the no-docs API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/generate-xmindmark-no-docs",
+            f"{API_BASE_URL}/generate-xmindmark",
             json={"user_requirements": user_requirements},
             stream=True
         )
@@ -44,8 +44,8 @@ def get_stream_response_with_docs(text, user_requirements):
     """Get streaming response from the documents API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/generate-xmindmark-langgraph-stream",
-            json={"text": text, "user_requirements": user_requirements},
+            f"{API_BASE_URL}/generate-xmindmark-langgraph",
+            json={"text": text, "user_requirements": user_requirements, "stream": True},
             stream=True
         )
         response.raise_for_status()

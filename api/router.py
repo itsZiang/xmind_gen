@@ -10,7 +10,7 @@ router = APIRouter()
 class GenerateXMindMarkRequest(BaseModel):
     text: str
     user_requirements: str
-    stream: bool = False
+    stream: bool = True
 
 
 class GenerateXMindMarkNoDocsRequest(BaseModel):
@@ -69,7 +69,7 @@ async def to_xmind_api(xmindmark: XMindMark):
     return {"xmind_file": xmind_file}
 
 
-@router.post("/generate-xmindmark-no-docs", tags=["input"])
+@router.post("/generate-xmindmark", tags=["input"])
 async def generate_xmindmark_no_docs_api(request: GenerateXMindMarkNoDocsRequest):
     response = generate_xmindmark_no_docs(request.user_requirements)
     return StreamingResponse(response, media_type="text/event-stream")
