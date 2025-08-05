@@ -10,6 +10,7 @@ router = APIRouter()
 class GenerateXMindMarkRequest(BaseModel):
     text: str
     user_requirements: str
+    stream: bool = False
 
 
 class GenerateXMindMarkNoDocsRequest(BaseModel):
@@ -34,22 +35,26 @@ async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse
     return StreamingResponse(response, media_type="text/event-stream")
 
 
-@router.post("/generate-xmindmark", tags=["input"])
-async def generate_xmindmark_api(request: GenerateXMindMarkRequest):
-    xmindmark = generate_xmindmark(request.text, request.user_requirements)
-    return {"xmindmark": xmindmark}
+# @router.post("/generate-xmindmark", tags=["input"])
+# async def generate_xmindmark_api(request: GenerateXMindMarkRequest):
+#     xmindmark = generate_xmindmark(request.text, request.user_requirements)
+#     return {"xmindmark": xmindmark}
 
 
 @router.post("/generate-xmindmark-langgraph", tags=["input"])
 async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkRequest):
-    xmindmark = generate_xmindmark_langgraph(request.text, request.user_requirements)
-    return {"xmindmark": xmindmark}
+    if request.stream:
+        response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
+        return StreamingResponse(response, media_type="text/event-stream")
+    else:
+        xmindmark = generate_xmindmark_langgraph(request.text, request.user_requirements)
+        return {"xmindmark": xmindmark}
 
 
-@router.post("/generate-xmindmark-langgraph-stream", tags=["input"])
-async def generate_xmindmark_langgraph_stream_api(request: GenerateXMindMarkRequest):
-    response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
-    return StreamingResponse(response, media_type="text/event-stream")
+# @router.post("/generate-xmindmark-langgraph-stream", tags=["input"])
+# async def generate_xmindmark_langgraph_stream_api(request: GenerateXMindMarkRequest):
+#     response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
+#     return StreamingResponse(response, media_type="text/event-stream")
 
 
 @router.post("/to-svg", tags=["output"])
