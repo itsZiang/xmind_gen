@@ -29,7 +29,7 @@ def xmindmark_to_svg(xmindmark_content: str) -> str:
             cwd=temp_dir,
             capture_output=True,
             text=True,
-            timeout=20
+            timeout=120
         )
 
         # Tìm file SVG
@@ -69,7 +69,7 @@ def xmindmark_to_xmind_file(xmindmark_content: str) -> Optional[str]:
         cwd=output_dir,
         capture_output=True,
         text=True,
-        timeout=10
+        timeout=120
     )
 
     # Tìm file .xmind mới nhất trong output_dir
