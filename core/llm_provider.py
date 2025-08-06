@@ -9,7 +9,7 @@ BASE_URL = os.getenv("BASE_URL", None)
 
 misa_llm = ChatOpenAI(
     # model="misa-qwen3-235b",
-    model="gpt-4.1",
+    model="misa-qwen3-235b",
     base_url=BASE_URL,
     api_key=API_KEY,
     default_headers={
@@ -17,12 +17,12 @@ misa_llm = ChatOpenAI(
     },
     max_tokens=8192,
     temperature=0.5,
-    # extra_body={
-    #     "service": "test-aiservice.misa.com.vn",
-    #     "chat_template_kwargs": {            
-    #         "enable_thinking": False
-    #     }
-    # }
+    extra_body={
+        "service": "test-aiservice.misa.com.vn",
+        "chat_template_kwargs": {            
+            "enable_thinking": False
+        }
+    }
 )
 
 llm = ChatOpenAI(

@@ -15,13 +15,6 @@ def split_into_chunks(state: DocumentState) -> DocumentState:
     return state
 
 
-# def generate_xmindmark_for_chunk(state: DocumentState) -> DocumentState:
-#     # Áp dụng từng chunk
-#     chunk = state["chunks"][len(state["xmindmark_chunks_content"])]
-#     xmind_chunk = generate_xmindmark(chunk, state["user_requirements"])
-#     state["xmindmark_chunks_content"].append(xmind_chunk)
-#     return state
-
 def generate_xmindmark_for_chunk(state: DocumentState) -> DocumentState:
     # Get current chunk index
     current_index = len(state["xmindmark_chunks_content"])

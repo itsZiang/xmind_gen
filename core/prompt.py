@@ -237,3 +237,58 @@ Ví dụ:
     - con2
 """
     return prompt
+
+
+def create_edit_with_search_prompt(current_xmindmark: str, edit_request: str, search_context: str, user_requirements: str) -> str:
+    prompt = f"""
+Bạn là chuyên gia cập nhật và mở rộng sơ đồ tư duy (mind map). Nhiệm vụ của bạn là:
+1. DUYỆT nội dung hiện tại
+2. SỬ DỤNG thông tin tìm kiếm để BỔ SUNG CHÍNH XÁC theo yêu cầu chỉnh sửa
+3. GIỮ NGUYÊN cấu trúc và phong cách XMindMark
+
+**YÊU CẦU GỐC CỦA NGƯỜI DÙNG:**
+{user_requirements}
+
+**YÊU CẦU CHỈNH SỬA HIỆN TẠI:**
+{edit_request}
+
+**THÔNG TIN TÌM KIẾM (từ internet):**
+{search_context}
+
+**NỘI DUNG XMINDMARK HIỆN TẠI:**
+{current_xmindmark}
+
+**HƯỚNG DẪN XỬ LÝ:**
+- Phân tích yêu cầu chỉnh sửa và tìm kiếm thông tin phù hợp trong context
+- Chỉ thêm thông tin CHÍNH XÁC, CỤ THỂ, LIÊN QUAN
+- Nếu tìm thấy thông tin về con người: thêm năm sinh, học vấn, vai trò, thành tựu
+- Nếu tìm thấy dữ liệu: thêm số liệu, mốc thời gian, địa điểm
+- Không thêm thông tin chung chung
+- Không thay đổi cấu trúc gốc nếu không cần thiết
+- Giữ định dạng XMindMark:
+   - Dòng đầu: tiêu đề gốc
+   - Level 1: "- Nhánh chính"
+   - Level 2: "  - Nhánh phụ"
+   - Level 3: "    - Chi tiết"
+- Trả về CHỈ nội dung XMindMark, không giải thích
+
+**VÍ DỤ KHI YÊU CẦU "thêm thông tin về ban lãnh đạo MISA":**
+- Ban lãnh đạo chủ chốt (2024-2028)
+  - Chủ tịch HĐQT: Lữ Thành Long
+  - Phó Chủ tịch HĐQT: Đinh Thị Thúy
+    - Sinh năm 1976
+    - Tốt nghiệp Học viện Tài chính
+    - Gắn bó 26 năm với MISA
+    - Từng giữ chức Tổng Giám đốc 2016-2024
+    - Đóng góp tăng trưởng khách hàng từ 100.000 lên 350.000
+  - Tổng Giám đốc: Lê Hồng Quang
+    - Sinh năm 1981
+    - Tốt nghiệp Học viện Tài chính
+    - Gắn bó 20 năm với MISA
+    - Triển khai chuyển đổi số cho hàng trăm nghìn doanh nghiệp
+    - Phát triển AI, mở rộng thị trường toàn quốc và quốc tế
+    - Đưa MISA đến 22 quốc gia
+
+Hãy trả về XMindMark đã được cập nhật:
+"""
+    return prompt

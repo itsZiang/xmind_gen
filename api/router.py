@@ -1,13 +1,13 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from core.llm_handle import generate_xmindmark, edit_xmindmark_with_llm, generate_xmindmark_no_docs, generate_xmindmark_with_search
+from core.llm_handle import edit_xmindmark_with_llm, generate_xmindmark_no_docs_stream, generate_xmindmark_with_search_stream, edit_xmindmark_with_llm_search, generate_xmindmark_with_search, generate_xmindmark_no_docs
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
 from pydantic import BaseModel
 
 router = APIRouter()
 
-class GenerateXMindMarkRequest(BaseModel):
+class GenerateXMindMarkFromDocsRequest(BaseModel):
     text: str
     user_requirements: str
     stream: bool = True
@@ -15,10 +15,8 @@ class GenerateXMindMarkRequest(BaseModel):
 
 class GenerateXMindMarkNoDocsRequest(BaseModel):
     user_requirements: str
-
-
-class GenerateXMindMarkWithSearchRequest(BaseModel):
-    user_requirements: str
+    enable_search: bool = False
+    stream: bool = True
 
 
 class XMindMark(BaseModel):
@@ -27,34 +25,34 @@ class XMindMark(BaseModel):
 class EditXMindMarkRequest(BaseModel):
     current_xmindmark: str
     edit_request: str
+    enable_search: bool = False
+    original_user_requirements: str
     
     
 @router.post("/edit-xmindmark", tags=["input"])
 async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse:
-    response = edit_xmindmark_with_llm(request.current_xmindmark, request.edit_request)
+    if request.enable_search:
+        if not request.original_user_requirements:
+            raise ValueError("original_user_requirements is required when enable_search is True")
+        response = edit_xmindmark_with_llm_search(
+            user_requirements=request.original_user_requirements,
+            edit_request=request.edit_request,
+            current_xmindmark=request.current_xmindmark
+        )
+    else:
+        response = edit_xmindmark_with_llm(request.current_xmindmark, request.edit_request)
     return StreamingResponse(response, media_type="text/event-stream")
 
 
-# @router.post("/generate-xmindmark", tags=["input"])
-# async def generate_xmindmark_api(request: GenerateXMindMarkRequest):
-#     xmindmark = generate_xmindmark(request.text, request.user_requirements)
-#     return {"xmindmark": xmindmark}
 
-
-@router.post("/generate-xmindmark-langgraph", tags=["input"])
-async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkRequest):
+@router.post("/generate-xmindmark-from-docs", tags=["input"])
+async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkFromDocsRequest):
     if request.stream:
         response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
         return StreamingResponse(response, media_type="text/event-stream")
     else:
         xmindmark = generate_xmindmark_langgraph(request.text, request.user_requirements)
         return {"xmindmark": xmindmark}
-
-
-# @router.post("/generate-xmindmark-langgraph-stream", tags=["input"])
-# async def generate_xmindmark_langgraph_stream_api(request: GenerateXMindMarkRequest):
-#     response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
-#     return StreamingResponse(response, media_type="text/event-stream")
 
 
 @router.post("/to-svg", tags=["output"])
@@ -70,12 +68,17 @@ async def to_xmind_api(xmindmark: XMindMark):
 
 
 @router.post("/generate-xmindmark", tags=["input"])
-async def generate_xmindmark_no_docs_api(request: GenerateXMindMarkNoDocsRequest):
-    response = generate_xmindmark_no_docs(request.user_requirements)
-    return StreamingResponse(response, media_type="text/event-stream")
-
-
-@router.post("/generate-xmindmark-with-search", tags=["input"])
-async def generate_xmindmark_with_search_api(request: GenerateXMindMarkWithSearchRequest):
-    response = generate_xmindmark_with_search(request.user_requirements)
-    return StreamingResponse(response, media_type="text/event-stream")
+async def generate_xmindmark_api(request: GenerateXMindMarkNoDocsRequest):
+    if request.enable_search:
+        response = generate_xmindmark_with_search_stream(request.user_requirements)
+    else:
+        response = generate_xmindmark_no_docs_stream(request.user_requirements)
+    
+    if request.stream:
+        return StreamingResponse(response, media_type="text/event-stream")
+    else:
+        if request.enable_search:
+            response = generate_xmindmark_with_search(request.user_requirements)
+        else:
+            response = generate_xmindmark_no_docs(request.user_requirements)
+        return {"xmindmark": response}

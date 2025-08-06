@@ -13,7 +13,9 @@ def get_stream_response_no_docs(user_requirements):
     try:
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark",
-            json={"user_requirements": user_requirements},
+            json={"user_requirements": user_requirements,
+                  "enable_search": False,
+                  "stream": True},
             stream=True
         )
         response.raise_for_status()
@@ -28,8 +30,10 @@ def get_stream_response_with_search(user_requirements):
     """Get streaming response from the search API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/generate-xmindmark-with-search",
-            json={"user_requirements": user_requirements},
+            f"{API_BASE_URL}/generate-xmindmark",
+            json={"user_requirements": user_requirements,
+                  "enable_search": True,
+                  "stream": True},
             stream=True
         )
         response.raise_for_status()
@@ -44,8 +48,10 @@ def get_stream_response_with_docs(text, user_requirements):
     """Get streaming response from the documents API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/generate-xmindmark-langgraph",
-            json={"text": text, "user_requirements": user_requirements, "stream": True},
+            f"{API_BASE_URL}/generate-xmindmark-from-docs",
+            json={"text": text, 
+                  "user_requirements": user_requirements, 
+                  "stream": True},
             stream=True
         )
         response.raise_for_status()
@@ -56,16 +62,30 @@ def get_stream_response_with_docs(text, user_requirements):
     except Exception as e:
         raise e
 
-def get_edit_stream_response(current_xmindmark, edit_request):
-    """Get streaming response from the edit API"""
+def get_edit_stream_response(current_xmindmark, edit_request, use_search=False, original_requirements=""):
+    """Get streaming response from edit API (with or without search)"""
     try:
-        response = requests.post(
-            f"{API_BASE_URL}/edit-xmindmark",
-            json={"current_xmindmark": current_xmindmark, "edit_request": edit_request},
-            stream=True
-        )
+        if use_search:
+            response = requests.post(
+                f"{API_BASE_URL}/edit-xmindmark",
+                json={
+                    "current_xmindmark": current_xmindmark,
+                    "edit_request": edit_request,
+                    "enable_search": True,
+                    "original_user_requirements": original_requirements
+                },
+                stream=True
+            )
+        else:
+            response = requests.post(
+                f"{API_BASE_URL}/edit-xmindmark",
+                json={"current_xmindmark": current_xmindmark, 
+                      "edit_request": edit_request,
+                      "enable_search": False,
+                      "original_user_requirements": original_requirements},
+                stream=True
+            )
         response.raise_for_status()
-        
         for chunk in response.iter_content(chunk_size=1024):
             if chunk:
                 yield chunk
@@ -84,24 +104,27 @@ with st.sidebar:
     # Toggle buttons for different modes
     st.subheader("🔧 Tùy chọn tạo mindmap")
     
-    # Upload file toggle
-    upload_mode = st.toggle("📄 Tải lên file tài liệu", value=False, help="Bật để tạo mindmap từ file tài liệu")
-    
-    # Search mode toggle  
-    search_mode = st.toggle("🔍 Tìm kiếm thông tin", value=False, help="Bật để tự động tìm kiếm thông tin trên internet")
-    
-    # File upload section - only show when upload_mode is enabled
+       # Chọn chế độ duy nhất
+    mode = st.radio(
+        "Chọn chế độ tạo mindmap",
+        options=["basic", "docs", "search"],
+        format_func=lambda x: {
+            "basic": "💭 Cơ bản (không tài liệu)",
+            "docs": "📄 Từ tài liệu",
+            "search": "🔍 Tìm kiếm thông tin"
+        }[x],
+        help="Chỉ chọn một chế độ duy nhất"
+    )
     uploaded_file = None
     text = None
-    if upload_mode:
+    if mode == "docs":
         st.markdown("##### 📁 Chọn file")
         uploaded_file = st.file_uploader(
             "Tải lên file tài liệu",
             type=['pdf', 'docx', 'md'],
-            help="Chọn file PDF, DOC X hoặc MD để tóm tắt",
+            help="Chọn file PDF, DOCX hoặc MD để tóm tắt",
             label_visibility="collapsed"
         )
-
         if uploaded_file:
             try:
                 text = extract_text_from_file(uploaded_file)
@@ -112,45 +135,36 @@ with st.sidebar:
 
     # Mode indicator
     st.divider()
-    if upload_mode and search_mode:
-        st.info("🔄 **Chế độ**: Tài liệu + Tìm kiếm")
-        current_mode = "docs_and_search"
-    elif upload_mode:
+    if mode == "docs":
         st.info("📄 **Chế độ**: Từ tài liệu")
         current_mode = "docs_only"
-    elif search_mode:
+    elif mode == "search":
         st.info("🔍 **Chế độ**: Tìm kiếm")
         current_mode = "search_only"
     else:
         st.info("💭 **Chế độ**: Cơ bản")
         current_mode = "basic"
 
-    # Validation and generate button
+    # Validation
     can_generate = False
     error_message = ""
-    
     if not user_requirements.strip():
         error_message = "⚠️ Vui lòng nhập yêu cầu"
-    elif upload_mode and not text:
+    elif mode == "docs" and not text:
         error_message = "⚠️ Vui lòng tải lên file tài liệu"
     else:
         can_generate = True
 
-    if error_message:
-        st.warning(error_message)
-
     # Single generate button
     if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
-        # Reset session state for new generation
         for key in ["xmindmark", "edited_xmindmark", "svg_url", "xmind_file_url", "previous_edited_xmindmark"]:
             if key in st.session_state:
                 del st.session_state[key]
-        
         st.session_state["generating"] = True
         st.session_state["current_mode"] = current_mode
-        st.session_state["generation_text"] = text if upload_mode else None
+        st.session_state["generation_text"] = text if mode == "docs" else None
         st.session_state["generation_requirements"] = user_requirements
-        st.session_state["generation_search_mode"] = search_mode
+        st.session_state["generation_search_mode"] = (mode == "search")
         st.rerun()
 
 # --- MAIN DISPLAY ---
@@ -231,10 +245,15 @@ with col2:
         full_edit_response = ""
         
         try:
-            # Get streaming edit response
+            use_search = st.session_state.get("use_search_during_edit", False)
+            original_req = st.session_state.get("generation_requirements", "")
+
+            current_xmindmark = st.session_state.get("edited_xmindmark", "")
             edit_stream = get_edit_stream_response(
-                st.session_state.get("xmindmark", ""),
-                st.session_state.get("edit_request", "")
+                current_xmindmark,
+                st.session_state.get("edit_request", ""),
+                use_search=use_search,
+                original_requirements=original_req
             )
             
             for chunk in edit_stream:
@@ -321,20 +340,33 @@ with col2:
        
         st.divider()
         st.markdown("### 🤖 Chỉnh sửa bằng AI")
+        
+        # Toggle for search during edit
+        enable_search_edit = st.toggle(
+            "🔍 Tìm kiếm thông tin mới",
+            key="enable_search_toggle",
+            help="Bật để AI tìm kiếm thông tin mới trên internet khi chỉnh sửa mindmap"
+        )
+        
+        # Show current status
+        if enable_search_edit:
+            st.info("🔍 **Chế độ**: AI sẽ tìm kiếm thông tin mới để bổ sung vào mindmap")
+        else:
+            st.info("📝 **Chế độ**: Chỉ chỉnh sửa nội dung hiện tại (không tìm kiếm)")
+
         with st.form(key="llm_edit_form", clear_on_submit=True):
             edit_request = st.text_area(
                 "Yêu cầu chỉnh sửa:",
-                placeholder="Ví dụ:\n- Thêm chi tiết cho nhánh 'Phương pháp'\n- Xóa nhánh không cần thiết\n- Sắp xếp lại cấu trúc theo thứ tự logic\n- Rút gọn các từ khóa quá dài",
+                placeholder="Ví dụ:\n- Thêm thông tin về ban lãnh đạo MISA\n- Tìm số liệu mới nhất về doanh thu\n- Bổ sung chi tiết về sản phẩm mới\n- Cập nhật thông tin công nghệ mới nhất",
                 height=160,
                 key="edit_request_input"
             )
-           
-            edit_with_llm = st.form_submit_button("✨ Chỉnh sửa bằng AI", type="secondary")
-       
+            edit_with_llm = st.form_submit_button("✨ Chỉnh sửa", type="primary")
+
         if edit_with_llm and edit_request.strip():
-            # Store edit request in session state and start editing
             st.session_state["edit_request"] = edit_request
             st.session_state["editing_with_ai"] = True
+            st.session_state["use_search_during_edit"] = enable_search_edit
             st.rerun()
         elif edit_with_llm and not edit_request.strip():
             st.warning("⚠️ Vui lòng nhập yêu cầu chỉnh sửa.")
@@ -427,5 +459,3 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
                     st.error("❌ Không thể tải file XMind.")
             except Exception as e:
                 st.error(f"❌ Lỗi khi tải file XMind: {str(e)}")
-        else:
-            st.info("Đang xử lý tạo file XMind...")
