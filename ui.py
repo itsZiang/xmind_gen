@@ -2,12 +2,26 @@ import streamlit as st
 import requests
 import base64
 from core.text_processing import extract_text_from_file
-from io import BytesIO
+import re
+import unicodedata
 
 API_BASE_URL = "http://localhost:8000/api"
 
 st.set_page_config(page_title="XMind Generator", layout="wide")
 st.title("🧠 Tạo Mind Map Tự Động")
+
+
+def extract_snake_case_title(xmindmark: str) -> str:
+    """Trích tiêu đề từ XMindMark và chuyển thành snake_case không dấu"""
+    lines = xmindmark.strip().splitlines()
+    if not lines:
+        return "mindmap"
+    title = lines[0]
+    title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode('utf-8')
+    title = re.sub(r'[^\w\s-]', '', title).strip().lower()
+    title = re.sub(r'[-\s]+', '_', title)
+    return title if title else "mindmap"
+
 
 def get_stream_response_no_docs(user_requirements):
     """Get streaming response from the no-docs API"""
@@ -422,7 +436,7 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
             st.download_button(
                 label="📥 Tải ảnh SVG",
                 data=svg_bytes,
-                file_name="mindmap.svg",
+                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.svg",
                 mime="image/svg+xml"
             )
 
@@ -445,6 +459,6 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
             st.download_button(
                 label="📥 Tải file XMind",
                 data=xmind_bytes,
-                file_name="mindmap.xmind",
+                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.xmind",
                 mime="application/octet-stream"
             )
