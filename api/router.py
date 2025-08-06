@@ -10,7 +10,7 @@ import os
 router = APIRouter()
 
 class GenerateXMindMarkFromDocsRequest(BaseModel):
-    text: str
+    document_content: str
     user_requirements: str
     stream: bool = True
 
@@ -31,7 +31,7 @@ class EditXMindMarkRequest(BaseModel):
     original_user_requirements: str
     
     
-@router.post("/edit-xmindmark", tags=["input"])
+@router.post("/edit-xmindmark", tags=["edit xmindmark"])
 async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse:
     if request.enable_search:
         if not request.original_user_requirements:
@@ -46,17 +46,17 @@ async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse
     return StreamingResponse(response, media_type="text/event-stream")
 
 
-@router.post("/generate-xmindmark-from-docs", tags=["input"])
+@router.post("/generate-xmindmark-from-docs", tags=["generate xmindmark"])
 async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkFromDocsRequest):
     if request.stream:
-        response = generate_xmindmark_langgraph_stream(request.text, request.user_requirements)
+        response = generate_xmindmark_langgraph_stream(request.document_content, request.user_requirements)
         return StreamingResponse(response, media_type="text/event-stream")
     else:
-        xmindmark = generate_xmindmark_langgraph(request.text, request.user_requirements)
+        xmindmark = generate_xmindmark_langgraph(request.document_content, request.user_requirements)
         return {"xmindmark": xmindmark}
 
 
-@router.post("/generate-xmindmark", tags=["input"])
+@router.post("/generate-xmindmark", tags=["generate xmindmark"])
 async def generate_xmindmark_api(request: GenerateXMindMarkNoDocsRequest):
     if request.enable_search:
         response = generate_xmindmark_with_search_stream(request.user_requirements)
@@ -85,7 +85,7 @@ async def generate_xmindmark_api(request: GenerateXMindMarkNoDocsRequest):
 #     return {"xmind_file": xmind_file}
 
 
-@router.post("/to-svg-bytes", tags=["output"])
+@router.post("/to-svg", tags=["save xmindmark"])
 async def to_svg_bytes_api(xmindmark: XMindMark):
     svg_path = xmindmark_to_svg(xmindmark.content)
     with open(svg_path, 'rb') as f:
@@ -97,7 +97,7 @@ async def to_svg_bytes_api(xmindmark: XMindMark):
     )
     
     
-@router.post("/to-xmind-bytes", tags=["output"])
+@router.post("/to-xmind", tags=["save xmindmark"])
 async def to_xmind_bytes_api(xmindmark: XMindMark):
     xmind_file_path = xmindmark_to_xmind_file(xmindmark.content)
     if not xmind_file_path:

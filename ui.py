@@ -127,7 +127,7 @@ def get_svg_bytes(content):
     """Get SVG bytes from API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/to-svg-bytes",
+            f"{API_BASE_URL}/to-svg",
             json={"content": content}
         )
         response.raise_for_status()
@@ -139,7 +139,7 @@ def get_xmind_bytes(content):
     """Get XMind file bytes from API"""
     try:
         response = requests.post(
-            f"{API_BASE_URL}/to-xmind-bytes",
+            f"{API_BASE_URL}/to-xmind",
             json={"content": content}
         )
         response.raise_for_status()
