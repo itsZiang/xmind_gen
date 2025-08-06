@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import base64
 from core.text_processing import extract_text_from_file
 from io import BytesIO
 
@@ -92,6 +93,46 @@ def get_edit_stream_response(current_xmindmark, edit_request, use_search=False, 
     except Exception as e:
         raise e
 
+def render_svg(svg_bytes):
+    """Renders the given SVG bytes as HTML"""
+    try:
+        # Convert bytes to string if needed
+        if isinstance(svg_bytes, bytes):
+            svg_string = svg_bytes.decode('utf-8')
+        else:
+            svg_string = svg_bytes
+        
+        # Encode to base64
+        b64 = base64.b64encode(svg_string.encode('utf-8')).decode("utf-8")
+        html = f'<img src="data:image/svg+xml;base64,{b64}" style="width: 100%; height: auto;"/>'
+        st.markdown(html, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"❌ Lỗi render SVG: {str(e)}")
+
+def get_svg_bytes(content):
+    """Get SVG bytes from API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/to-svg-bytes",
+            json={"content": content}
+        )
+        response.raise_for_status()
+        return response.content
+    except Exception as e:
+        raise e
+
+def get_xmind_bytes(content):
+    """Get XMind file bytes from API"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/to-xmind-bytes",
+            json={"content": content}
+        )
+        response.raise_for_status()
+        return response.content
+    except Exception as e:
+        raise e
+
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("📌 Nhập yêu cầu & tùy chọn")
@@ -157,7 +198,7 @@ with st.sidebar:
 
     # Single generate button
     if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
-        for key in ["xmindmark", "edited_xmindmark", "svg_url", "xmind_file_url", "previous_edited_xmindmark"]:
+        for key in ["xmindmark", "edited_xmindmark", "svg_bytes", "xmind_bytes", "previous_edited_xmindmark"]:
             if key in st.session_state:
                 del st.session_state[key]
         st.session_state["generating"] = True
@@ -219,18 +260,13 @@ with col2:
             st.session_state["edited_xmindmark"] = full_response
             st.session_state["generating"] = False
             
-            # Generate SVG
+            # Generate SVG bytes
             try:
-                svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={"content": full_response})
-                if svg_res.status_code == 200:
-                    svg_data = svg_res.json()
-                    svg_url = svg_data.get("svg_url")
-                    st.session_state["svg_url"] = svg_url
-                    st.success("✅ Mind map đã tạo và hiển thị!")
-                else:
-                    st.error(f"❌ Không tạo được SVG: {svg_res.status_code}")
+                svg_bytes = get_svg_bytes(full_response)
+                st.session_state["svg_bytes"] = svg_bytes
+                st.success("✅ Mind map đã tạo và hiển thị!")
             except Exception as e:
-                st.error(f"❌ Lỗi tạo SVG: {str(e)}")
+                st.error(f"❌ Không tạo được SVG: {str(e)}")
             
             st.rerun()
             
@@ -267,18 +303,13 @@ with col2:
             st.session_state["edited_xmindmark"] = full_edit_response
             st.session_state["editing_with_ai"] = False
             
-            # Generate new SVG
+            # Generate new SVG bytes
             try:
-                svg_res = requests.post(f"{API_BASE_URL}/to-svg", json={"content": full_edit_response})
-                if svg_res.status_code == 200:
-                    svg_data = svg_res.json()
-                    svg_url = svg_data.get("svg_url")
-                    st.session_state["svg_url"] = svg_url
-                    st.success("✅ AI đã chỉnh sửa thành công!")
-                else:
-                    st.error(f"❌ Không tạo được SVG: {svg_res.status_code}")
+                svg_bytes = get_svg_bytes(full_edit_response)
+                st.session_state["svg_bytes"] = svg_bytes
+                st.success("✅ AI đã chỉnh sửa thành công!")
             except Exception as e:
-                st.error(f"❌ Lỗi tạo SVG: {str(e)}")
+                st.error(f"❌ Không tạo được SVG: {str(e)}")
             
             # Clean up edit request from session state
             if "edit_request" in st.session_state:
@@ -316,22 +347,12 @@ with col2:
                     st.session_state["edited_xmindmark"] = edited
                     st.session_state["manual_editing"] = False
                     try:
-                        res = requests.post(f"{API_BASE_URL}/to-svg", json={
-                            "content": edited
-                        })
-                        if res.status_code == 200:
-                            try:
-                                svg_data = res.json()
-                                svg_url = svg_data.get("svg_url")
-                                st.session_state["svg_url"] = svg_url
-                                st.success("✅ Đã cập nhật hình ảnh!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"❌ Lỗi đọc JSON: {e}\nResponse: {res.text}")
-                        else:
-                            st.error(f"❌ Lỗi chuyển SVG: {res.status_code}\nResponse: {res.text}")
+                        svg_bytes = get_svg_bytes(edited)
+                        st.session_state["svg_bytes"] = svg_bytes
+                        st.success("✅ Đã cập nhật hình ảnh!")
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"❌ Lỗi kết nối API: {str(e)}")
+                        st.error(f"❌ Lỗi tạo SVG: {str(e)}")
             
             with col_edit2:
                 if st.button("❌ Hủy"):
@@ -377,26 +398,14 @@ with col2:
 # --- Hiển thị SVG ---
 with col1:
     st.subheader("🧩 Sơ đồ Mindmap")
-    svg_url = st.session_state.get("svg_url")
+    svg_bytes = st.session_state.get("svg_bytes")
 
-    if svg_url:
+    if svg_bytes:
         try:
-            svg_response = requests.get(f"http://localhost:8000{svg_url}")
-            if svg_response.status_code == 200:
-                import tempfile
-                import os
-               
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.svg') as tmp_file:
-                    tmp_file.write(svg_response.content)
-                    tmp_file_path = tmp_file.name
-               
-                st.image(tmp_file_path, use_container_width=True)
-                os.unlink(tmp_file_path)  # Xóa file tạm
-               
-            else:
-                st.error(f"❌ Không thể tải SVG từ server: {svg_response.status_code}")
+            # Display SVG using custom render function
+            render_svg(svg_bytes)
         except Exception as e:
-            st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
+            st.error(f"❌ Lỗi khi hiển thị SVG: {str(e)}")
     elif st.session_state.get("generating", False) or st.session_state.get("editing_with_ai", False):
         st.info("⏳ Đang xử lý sơ đồ mind map...")
     else:
@@ -408,54 +417,34 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
     col_dl1, col_dl2 = st.columns(2)
 
     with col_dl1:
-        svg_url = st.session_state.get("svg_url")
-        if svg_url:
-            try:
-                response = requests.get(f"http://localhost:8000{svg_url}")
-                if response.status_code == 200:
-                    st.download_button(
-                        label="📥 Tải ảnh SVG",
-                        data=response.content,
-                        file_name=svg_url.split("/")[-1],
-                        mime="image/svg+xml"
-                    )
-                else:
-                    st.error("❌ Không thể tải ảnh SVG.")
-            except Exception as e:
-                st.error(f"❌ Lỗi khi tải SVG: {str(e)}")
+        svg_bytes = st.session_state.get("svg_bytes")
+        if svg_bytes:
+            st.download_button(
+                label="📥 Tải ảnh SVG",
+                data=svg_bytes,
+                file_name="mindmap.svg",
+                mime="image/svg+xml"
+            )
 
     with col_dl2:
         edited_content = st.session_state.get("edited_xmindmark")
         prev_content = st.session_state.get("previous_edited_xmindmark")
 
-        # Nếu nội dung thay đổi hoặc chưa có file_url thì tạo lại file
-        if edited_content != prev_content or "xmind_file_url" not in st.session_state:
+        # Nếu nội dung thay đổi hoặc chưa có xmind_bytes thì tạo lại file
+        if edited_content != prev_content or "xmind_bytes" not in st.session_state:
             try:
-                res = requests.post(f"{API_BASE_URL}/to-xmind", json={
-                    "content": edited_content
-                })
-                if res.status_code == 200:
-                    xmind_file_url = res.json()["xmind_file"]
-                    st.session_state["xmind_file_url"] = xmind_file_url
-                    st.session_state["previous_edited_xmindmark"] = edited_content  # cập nhật bản ghi
-                else:
-                    st.error("❌ Không tạo được file .xmind")
+                xmind_bytes = get_xmind_bytes(edited_content)
+                st.session_state["xmind_bytes"] = xmind_bytes
+                st.session_state["previous_edited_xmindmark"] = edited_content  # cập nhật bản ghi
             except Exception as e:
                 st.error(f"❌ Lỗi khi tạo file XMind: {str(e)}")
 
         # Hiển thị nút tải file
-        xmind_file_url = st.session_state.get("xmind_file_url")
-        if xmind_file_url:
-            try:
-                xmind_response = requests.get(f"http://localhost:8000{xmind_file_url}")
-                if xmind_response.status_code == 200:
-                    st.download_button(
-                        label="📥 Tải file XMind",
-                        data=xmind_response.content,
-                        file_name=xmind_file_url.split("/")[-1],
-                        mime="application/octet-stream"
-                    )
-                else:
-                    st.error("❌ Không thể tải file XMind.")
-            except Exception as e:
-                st.error(f"❌ Lỗi khi tải file XMind: {str(e)}")
+        xmind_bytes = st.session_state.get("xmind_bytes")
+        if xmind_bytes:
+            st.download_button(
+                label="📥 Tải file XMind",
+                data=xmind_bytes,
+                file_name="mindmap.xmind",
+                mime="application/octet-stream"
+            )

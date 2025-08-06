@@ -45,8 +45,7 @@ def xmindmark_to_svg(xmindmark_content: str) -> str:
         output_svg_path = os.path.join(STATIC_DIR, os.path.basename(svg_path))
         shutil.copy(svg_path, output_svg_path)
 
-        image_url = f"/static/output_svg/{os.path.basename(svg_path)}"
-        return image_url
+        return output_svg_path  # Trả về path thực tế thay vì URL
     
 
 def xmindmark_to_xmind_file(xmindmark_content: str) -> Optional[str]:
@@ -83,4 +82,4 @@ def xmindmark_to_xmind_file(xmindmark_content: str) -> Optional[str]:
         return None
 
     latest_file = max(xmind_files, key=os.path.getmtime)
-    return f"/{latest_file}"
+    return latest_file  # Trả về path thực tế thay vì URL
