@@ -75,7 +75,7 @@ def transcribe_audio_file(file_path: str) -> str:
             cmd,
             capture_output=True, 
             text=True, 
-            timeout=300
+            timeout=30000
         )
         
         if result.returncode != 0:

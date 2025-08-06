@@ -181,7 +181,7 @@ def get_stream_response_from_audio(audio_file, user_requirements):
             files=files,
             data=data,
             stream=True,
-            timeout=300  
+            timeout=30000
         )
         
         if response.status_code != 200:
@@ -220,7 +220,7 @@ def transcribe_audio_file(audio_file):
         response = requests.post(
             f"{API_BASE_URL}/transcribe-audio",
             files=files,
-            timeout=300  
+            timeout=30000
         )
         
         if response.status_code != 200:
