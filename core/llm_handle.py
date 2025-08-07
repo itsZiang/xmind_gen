@@ -1,12 +1,32 @@
 from core.llm_provider import llm, misa_llm
 from dotenv import load_dotenv
-from core.prompt import create_xmindmark_prompt, create_split_text_prompt, create_global_title_prompt, create_edit_prompt, create_merge_xmindmark_prompt, create_xmindmark_no_docs_prompt, create_xmindmark_with_search_prompt, create_edit_with_search_prompt
+from core.prompt import translate_to_vn, create_xmindmark_prompt, create_split_text_prompt, create_global_title_prompt, create_edit_prompt, create_merge_xmindmark_prompt, create_xmindmark_no_docs_prompt, create_xmindmark_with_search_prompt, create_edit_with_search_prompt
 from core.tavily_search import tavily_search
+import logging
+from typing import List, Dict, Optional, Any
 
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 
 used_llm = misa_llm
+
+def translate_to_vietnamese(english_text: str) -> str:
+    prompt = translate_to_vn(english_text)
+    result = misa_llm.invoke(prompt).content
+    translated_text = str(result) if result else ""
+    return translated_text
+    
+def generate_xmindmark_from_audio(transcribed_text: str, user_requirements: str) -> str:
+    result = generate_xmindmark(transcribed_text, user_requirements)
+    logger.info("XMindMark generation from audio completed")
+    return result
+    
+def generate_xmindmark_from_audio_stream(transcribed_text: str, user_requirements: str):
+    prompt = create_xmindmark_prompt(transcribed_text, user_requirements)
+    for chunk in misa_llm.stream(prompt):
+        yield chunk.content
+
 
 def edit_xmindmark_with_llm_search(user_requirements: str, edit_request: str, current_xmindmark: str):
     search_query = f"{user_requirements} {edit_request}".strip()

@@ -1,16 +1,18 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import StreamingResponse
-from core.llm_handle import edit_xmindmark_with_llm, generate_xmindmark_no_docs_stream, generate_xmindmark_with_search_stream, edit_xmindmark_with_llm_search, generate_xmindmark_with_search, generate_xmindmark_no_docs
+from core.llm_handle import generate_xmindmark_from_audio_stream, edit_xmindmark_with_llm, generate_xmindmark_no_docs_stream, generate_xmindmark_with_search_stream, edit_xmindmark_with_llm_search, generate_xmindmark_with_search, generate_xmindmark_no_docs
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
+from core.audio_processing import process_uploaded_audio, validate_audio_file
 from pydantic import BaseModel, Field
 from typing import AsyncIterator
 import json
 from io import BytesIO
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Response models for JSON streaming
 class StreamChunk(BaseModel):
     delta: str = Field(..., description="Delta text content")
     done: bool = Field(False, description="Có phải chunk cuối cùng không")
@@ -41,8 +43,9 @@ class EditXMindMarkRequest(BaseModel):
     enable_search: bool = Field(False, description="Có bật tính năng tìm kiếm khi chỉnh sửa hay không")
     original_user_requirements: str = Field("", description="Yêu cầu ban đầu của người dùng (cần thiết khi enable_search=True)")
     
+class GenerateFromAudioRequest(BaseModel):
+    user_requirements: str
 
-# Utility functions for JSON streaming
 async def convert_to_json_stream(generator) -> AsyncIterator[str]:
     """
     Convert generator thành JSON streaming format
@@ -102,6 +105,118 @@ def create_json_streaming_response(generator) -> StreamingResponse:
             "X-Content-Type-Options": "nosniff"
         }
     )
+
+@router.post("/generate-xmindmark-from-audio", tags=["input"])
+async def generate_xmindmark_from_audio_api(
+    audio_file: UploadFile = File(...),
+    user_requirements: str = Form(...)  
+):
+    try:
+        logger.info(f"Received audio file: {audio_file.filename}, size: {audio_file.size}")
+        
+        if not user_requirements or not user_requirements.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="User requirements are required and cannot be empty"
+            )
+        
+
+        if not audio_file or not audio_file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Audio file is required"
+            )
+            
+        if not validate_audio_file(audio_file):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid audio file. Supported formats: wav, mp3, m4a, ogg, flac, aac. Max size: 25MB"
+            )
+        
+        await audio_file.seek(0)
+        
+        logger.info("Starting audio transcription and translation")
+        try:
+            vietnamese_text = process_uploaded_audio(audio_file)
+        except Exception as audio_error:
+            logger.error(f"Audio processing failed: {str(audio_error)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Audio processing failed: {str(audio_error)}"
+            )
+        
+        if not vietnamese_text or not vietnamese_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract text from audio file or transcription is empty"
+            )
+        
+        logger.info(f"Audio processing completed. Transcribed text length: {len(vietnamese_text)}")
+        
+        def generate_response():
+            try:
+                for chunk in generate_xmindmark_from_audio_stream(vietnamese_text, user_requirements):
+                    if chunk:  
+                        yield chunk
+            except Exception as e:
+                logger.error(f"Error in streaming generation: {str(e)}")
+                yield f"Error: {str(e)}"
+        
+        return StreamingResponse(generate_response(), media_type="text/event-stream")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in audio processing: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/transcribe-audio", tags=["input"])
+async def transcribe_audio_api(audio_file: UploadFile = File(...)):
+    try:
+        logger.info(f"Received audio file for transcription: {audio_file.filename}")
+        
+        if not audio_file or not audio_file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Audio file is required"
+            )
+            
+        if not validate_audio_file(audio_file):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid audio file. Supported formats: wav, mp3, m4a, ogg, flac, aac. Max size: 25MB"
+            )
+        
+        await audio_file.seek(0)
+        
+        try:
+            transcribed_text = process_uploaded_audio(audio_file)
+        except Exception as audio_error:
+            logger.error(f"Audio transcription failed: {str(audio_error)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Audio transcription failed: {str(audio_error)}"
+            )
+        
+        if not transcribed_text or not transcribed_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract text from audio file or transcription is empty"
+            )
+        
+        logger.info(f"Transcription completed. Text length: {len(transcribed_text)}")
+        
+        return {
+            "transcribed_text": transcribed_text,
+            "length": len(transcribed_text),
+            "filename": audio_file.filename
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in audio transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
     
  
 @router.post("/edit-xmindmark", tags=["edit xmindmark"])

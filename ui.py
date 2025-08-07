@@ -2,10 +2,17 @@ import streamlit as st
 import requests
 import base64
 import json
+from io import BytesIO
 from core.text_processing import extract_text_from_file
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+import numpy as np
+import wave
+import tempfile
+import os, logging
 import re
 import unicodedata
 
+logger = logging.getLogger(__name__)
 API_BASE_URL = "http://localhost:8000/api"
 
 st.set_page_config(page_title="XMind Generator", layout="wide")
@@ -204,6 +211,86 @@ def get_xmind_bytes(content):
     except Exception as e:
         raise e
 
+def get_stream_response_from_audio(audio_file, user_requirements):
+    try:
+        if hasattr(audio_file, 'getvalue'):
+            audio_content = audio_file.getvalue()
+            filename = getattr(audio_file, 'name', 'audio.wav')
+        elif hasattr(audio_file, 'read'):
+            audio_file.seek(0)  
+            audio_content = audio_file.read()
+            filename = getattr(audio_file, 'name', 'audio.wav')
+        else:
+            raise Exception("Invalid audio file format")
+        
+        if not audio_content:
+            raise Exception("Audio file is empty")
+        
+        from io import BytesIO
+        audio_buffer = BytesIO(audio_content)
+        audio_buffer.name = filename
+        
+        files = {"audio_file": (filename, audio_buffer, "audio/wav")}
+        data = {
+            "user_requirements": user_requirements,
+            "stream": True  # ← Thêm parameter này
+        }
+        
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark-from-audio",
+            files=files,
+            data=data,
+            stream=True,
+            timeout=30000
+        )
+        
+        if response.status_code != 200:
+            error_detail = response.text
+            raise Exception(f"API Error {response.status_code}: {error_detail}")
+        
+        for delta in parse_json_stream(response):
+            yield delta
+                
+    except Exception as e:
+        logger.error(f"Audio streaming error: {str(e)}")
+        raise e
+    
+def transcribe_audio_file(audio_file):
+    try:
+        if hasattr(audio_file, 'getvalue'):
+            audio_content = audio_file.getvalue()
+            filename = getattr(audio_file, 'name', 'audio.wav')
+        elif hasattr(audio_file, 'read'):
+            audio_file.seek(0)  # Reset to beginning
+            audio_content = audio_file.read()
+            filename = getattr(audio_file, 'name', 'audio.wav')
+        else:
+            raise Exception("Invalid audio file format")
+        
+        if not audio_content:
+            raise Exception("Audio file is empty")
+        
+        from io import BytesIO
+        audio_buffer = BytesIO(audio_content)
+        audio_buffer.name = filename
+        
+        files = {"audio_file": (filename, audio_buffer, "audio/wav")}
+        
+        response = requests.post(
+            f"{API_BASE_URL}/transcribe-audio",
+            files=files,
+            timeout=30000
+        )
+        
+        if response.status_code != 200:
+            error_detail = response.text
+            raise Exception(f"API Error {response.status_code}: {error_detail}")
+        
+        return response.json()
+        
+    except Exception as e:
+        logger.error(f"Transcription error: {str(e)}")
+        raise e
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -220,10 +307,11 @@ with st.sidebar:
     # Chọn chế độ duy nhất
     mode = st.radio(
         "Chọn chế độ tạo mindmap",
-        options=["basic", "docs", "search"],
+        options=["basic", "docs", "audio", "search"],
         format_func=lambda x: {
             "basic": "💭 Cơ bản (không tài liệu)",
-            "docs": "📄 Từ tài liệu", 
+            "docs": "📄 Từ tài liệu",
+            "audio": "🎤 Từ giọng nói",
             "search": "🔍 Tìm kiếm thông tin"
         }[x],
         help="Chỉ chọn một chế độ duy nhất"
@@ -238,7 +326,10 @@ with st.sidebar:
     )
     
     uploaded_file = None
+    audio_file = None
     document_content = None
+    transcribed_text = None
+
     if mode == "docs":
         st.markdown("##### 📁 Chọn file")
         uploaded_file = st.file_uploader(
@@ -255,14 +346,123 @@ with st.sidebar:
                 st.error(f"❌ Lỗi xử lý file: {e}")
                 document_content = None
 
+    elif mode == "audio":
+        st.markdown("##### 🎤 Chọn nguồn âm thanh")
+        
+        audio_source = st.radio(
+            "Nguồn âm thanh:",
+            options=["upload", "record"],
+            format_func=lambda x: {
+                "upload": "📁 Tải file âm thanh",
+                "record": "🎙️ Thu âm trực tiếp"
+            }[x],
+            help="Chọn cách nhập âm thanh"
+        )
+        
+        if audio_source == "upload":
+            st.markdown("**Tải file âm thanh:**")
+            uploaded_audio_file = st.file_uploader(
+                "Chọn file âm thanh",
+                type=['wav', 'mp3', 'm4a', 'ogg', 'flac', 'aac'],
+                help="Hỗ trợ: WAV, MP3, M4A, OGG, FLAC, AAC (tối đa 25MB)",
+                label_visibility="collapsed",
+                key="audio_uploader"
+            )
+            
+            if uploaded_audio_file:
+                # Validate file size
+                if uploaded_audio_file.size > 25 * 1024 * 1024:
+                    st.error("❌ File quá lớn! Vui lòng chọn file nhỏ hơn 25MB.")
+                    audio_file = None
+                else:
+                    audio_file = uploaded_audio_file
+                    st.success(f"✅ Tải file âm thanh thành công: {audio_file.name}")
+                    st.info(f"📊 Kích thước: {audio_file.size / (1024*1024):.1f} MB")
+                    
+                    # Option to transcribe first
+                    if st.button("🎯 Xem nội dung chuyển đổi", help="Chuyển đổi âm thanh thành văn bản để xem trước"):
+                        with st.spinner("🔄 Đang chuyển đổi âm thanh..."):
+                            try:
+                                result = transcribe_audio_file(audio_file)
+                                transcribed_text = result["transcribed_text"]
+                                st.session_state["transcribed_preview"] = transcribed_text
+                                st.success("✅ Chuyển đổi thành công!")
+                            except Exception as e:
+                                st.error(f"❌ Lỗi chuyển đổi: {str(e)}")
+                    
+                    # Show transcribed preview if available
+                    if "transcribed_preview" in st.session_state:
+                        with st.expander("📝 Nội dung đã chuyển đổi", expanded=True):
+                            st.text_area(
+                                "Văn bản từ âm thanh:",
+                                value=st.session_state["transcribed_preview"],
+                                height=150,
+                                disabled=True
+                            )
+        
+        elif audio_source == "record":
+            st.markdown("**Thu âm trực tiếp:**")
+            st.info("🎙️ Click 'START' để bắt đầu thu âm, 'STOP' để kết thúc")
+            
+            # WebRTC audio recorder
+            webrtc_ctx = webrtc_streamer(
+                key="audio-recorder",
+                mode=WebRtcMode.SENDONLY,
+                audio_receiver_size=1024,
+                media_stream_constraints={"video": False, "audio": True},
+                rtc_configuration=RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+            )
+            
+            if webrtc_ctx.audio_receiver:
+                st.success("🎤 Đang thu âm... Nói vào microphone")
+                
+                # Process recorded audio
+                if st.button("🔚 Kết thúc và xử lý"):
+                    audio_frames = webrtc_ctx.audio_receiver.get_frames(timeout=1)
+                    if audio_frames:
+                        # Convert frames to audio data
+                        sound_chunk = np.array([frame.to_ndarray() for frame in audio_frames])
+                        if sound_chunk.size > 0:
+                            # Save to temporary file
+                            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+                                # Simple WAV file creation
+                                with wave.open(tmp_file.name, 'wb') as wav_file:
+                                    wav_file.setnchannels(1)  # mono
+                                    wav_file.setsampwidth(2)  # 16-bit
+                                    wav_file.setframerate(16000)  # 16kHz
+                                    wav_file.writeframes(sound_chunk.tobytes())
+                                
+                                # Read back as file-like object
+                                with open(tmp_file.name, 'rb') as f:
+                                    audio_data = f.read()
+                                
+                                # Create a file-like object for the audio
+                                audio_file = BytesIO(audio_data)
+                                audio_file.name = "recorded_audio.wav"
+                                
+                                # Clean up temp file
+                                os.unlink(tmp_file.name)
+                                
+                                st.success("✅ Thu âm hoàn tất!")
+                        else:
+                            st.warning("⚠️ Không có dữ liệu âm thanh")
+                    else:
+                        st.warning("⚠️ Không thu được âm thanh")
+
     # Mode indicator
     st.divider()
     if mode == "docs":
         st.info("📄 **Chế độ**: Từ tài liệu")
+        current_mode = "docs_only"
     elif mode == "search":
         st.info("🔍 **Chế độ**: Tìm kiếm")
+        current_mode = "search_only"
+    elif mode == "audio":
+        st.info("🎤 **Chế độ**: Từ giọng nói")
+        current_mode = "audio_only"
     else:
         st.info("💭 **Chế độ**: Cơ bản")
+        current_mode = "basic"
 
     if streaming_mode:
         st.info("🌊 **Streaming**: Bật")
@@ -276,6 +476,8 @@ with st.sidebar:
         error_message = "⚠️ Vui lòng nhập yêu cầu"
     elif mode == "docs" and not document_content:
         error_message = "⚠️ Vui lòng tải lên file tài liệu"
+    elif mode == "audio" and not audio_file:
+        error_message = "⚠️ Vui lòng tải lên file âm thanh hoặc thu âm"
     else:
         can_generate = True
 
@@ -285,7 +487,7 @@ with st.sidebar:
     # Single generate button
     if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
         # Clear previous states
-        for key in ["xmindmark", "edited_xmindmark", "svg_bytes", "xmind_bytes", "previous_edited_xmindmark"]:
+        for key in ["xmindmark", "edited_xmindmark", "svg_bytes", "xmind_bytes", "previous_edited_xmindmark", "transcribed_preview"]:
             if key in st.session_state:
                 del st.session_state[key]
         
@@ -294,6 +496,8 @@ with st.sidebar:
         st.session_state["streaming_enabled"] = streaming_mode
         st.session_state["generation_document_content"] = document_content
         st.session_state["generation_requirements"] = user_requirements
+        st.session_state["generation_audio_file"] = audio_file if mode == "audio" else None
+
         st.rerun()
 
 
@@ -311,7 +515,8 @@ with col2:
         
         generation_document_content = st.session_state.get("generation_document_content")
         generation_requirements = st.session_state.get("generation_requirements")
-        
+        generation_audio_file = st.session_state.get("generation_audio_file")
+      
         if streaming_enabled:
             # Streaming mode
             if current_mode == "docs":
@@ -330,7 +535,13 @@ with col2:
                     stream_response = get_stream_response_with_docs(generation_document_content, generation_requirements)
                 elif current_mode == "search":
                     stream_response = get_stream_response_with_search(generation_requirements)
-                else:  # basic mode
+                elif current_mode == "audio_only":
+                    if generation_audio_file:
+                        stream_response = get_stream_response_from_audio(generation_audio_file, generation_requirements)
+                    else:
+                        raise Exception("No audio file provided")
+
+                else:  
                     stream_response = get_stream_response_no_docs(generation_requirements)
                 
                 for delta in stream_response:

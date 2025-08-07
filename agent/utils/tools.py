@@ -17,28 +17,20 @@ def split_text(text: str, user_requirements: str) -> List[str]:
 
 
 def merge_xmindmarks(chunks: list[str], global_title: str, user_requirements: str) -> str:
-    """
-    Sử dụng LLM để merge và refine các XMindMark chunks thành một mind map hoàn chỉnh
-    """
-    
-    # Fallback về method cũ nếu chỉ có 1 chunk
     if len(chunks) <= 1:
         if chunks:
             return f"{global_title}\n- {chunks[0]}"
         return global_title
     
-    # Chuẩn bị context cho LLM
     chunks_text = ""
     for i, chunk in enumerate(chunks, 1):
         chunks_text += f"\n--- CHUNK {i} ---\n{chunk}\n"
     
     
     try:
-        # Gọi LLM để merge và refine
         response = merge_xmindmark_with_llm(chunks_text, global_title, user_requirements)
         refined_mindmap = response.strip()
         
-        # Validation cơ bản
         if not refined_mindmap or len(refined_mindmap.split('\n')) < 2:
             raise Exception("LLM response quá ngắn hoặc không hợp lệ")
             
@@ -47,12 +39,11 @@ def merge_xmindmarks(chunks: list[str], global_title: str, user_requirements: st
         
     except Exception as e:
         print(f"Warning: LLM merge failed ({e}), fallback to simple merge")
-        # Fallback về method cũ
         return merge_xmindmarks_simple(chunks, global_title)
 
 
 def merge_xmindmarks_simple(chunks: list[str], global_title: str) -> str:
-    merged_lines = [global_title]  # Root node
+    merged_lines = [global_title]  
     
     for chunk in chunks:
         lines = chunk.strip().splitlines()

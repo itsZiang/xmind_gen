@@ -292,3 +292,19 @@ Bạn là chuyên gia cập nhật và mở rộng sơ đồ tư duy (mind map).
 Hãy trả về XMindMark đã được cập nhật:
 """
     return prompt
+
+def translate_to_vn(english_text:str) -> str:
+    prompt = f"""
+Bạn là một chuyên gia dịch thuật chuyên nghiệp. Hãy dịch đoạn văn bản tiếng Anh sau sang tiếng Việt một cách tự nhiên, chính xác và dễ hiểu.
+
+YÊU CẦU:
+- Dịch chính xác nghĩa và ngữ cảnh
+- Sử dụng tiếng Việt tự nhiên, không máy móc
+- Giữ nguyên thuật ngữ chuyên môn khi cần thiết
+- Không thêm giải thích hay bình luận
+- Chỉ trả về nội dung đã dịch
+
+VĂN BẢN CẦN DỊCH:
+{english_text}
+"""
+    return prompt
