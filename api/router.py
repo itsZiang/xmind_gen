@@ -224,7 +224,7 @@ async def generate_xmindmark_api(request: GenerateXMindMarkNoDocsRequest):
         return StreamingXMindMarkResponse(xmindmark=xmindmark_content)
 
 
-@router.post("/to-svg", tags=["save xmindmark"])
+@router.post("/to-svg", tags=["save to svg/xmind"])
 async def to_svg_bytes_api(xmindmark: XMindMark):
     """
     Chuyển đổi XMindMark thành file SVG
@@ -261,7 +261,7 @@ async def to_svg_bytes_api(xmindmark: XMindMark):
     )
     
     
-@router.post("/to-xmind", tags=["save xmindmark"])
+@router.post("/to-xmind", tags=["save svg/xmind"])
 async def to_xmind_bytes_api(xmindmark: XMindMark):
     """
     Chuyển đổi XMindMark thành file .xmind

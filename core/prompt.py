@@ -14,14 +14,14 @@ def create_xmindmark_prompt(text: str, user_requirements: str) -> str:
       - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
     - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
     Ví dụ:
-    ông nội 
-    - cha1
-        - con1
-            - con1.1
-        - con2
-    - cha2
-        - con1
-        - con2
+    Tiêu Đề Chính
+    - Nhánh chính 1
+    - Nhánh phụ 1.1
+        - Chi tiết 1.1.1
+        - Chi tiết 1.1.2
+    - Nhánh phụ 1.2
+    - Nhánh chính 2
+    - Nhánh phụ 2.1
     """
     return prompt
   
@@ -197,14 +197,14 @@ HƯỚNG DẪN:
     - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
 - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
 Ví dụ:
-ông nội 
-- cha1
-    - con1
-        - con1.1
-    - con2
-- cha2
-    - con1
-    - con2
+Tiêu Đề Chính
+- Nhánh chính 1
+  - Nhánh phụ 1.1
+    - Chi tiết 1.1.1
+    - Chi tiết 1.1.2
+  - Nhánh phụ 1.2
+- Nhánh chính 2
+  - Nhánh phụ 2.1
 """
     return prompt
 
@@ -227,14 +227,14 @@ HƯỚNG DẪN:
     - Các tầng sâu hơn thụt thêm bằng cách thêm "- " cho mỗi cấp.
 - Trả về CHỈ nội dung định dạng xmindmark, không bao gồm giải thích hoặc ký tự ngoài định dạng như ```, ```json, ```python, ...
 Ví dụ:
-ông nội 
-- cha1
-    - con1
-        - con1.1
-    - con2
-- cha2
-    - con1
-    - con2
+Tiêu Đề Chính
+- Nhánh chính 1
+  - Nhánh phụ 1.1
+    - Chi tiết 1.1.1
+    - Chi tiết 1.1.2
+  - Nhánh phụ 1.2
+- Nhánh chính 2
+  - Nhánh phụ 2.1
 """
     return prompt
 

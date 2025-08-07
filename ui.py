@@ -579,6 +579,6 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
             st.download_button(
                 label="📥 Tải file XMind",
                 data=xmind_bytes,
-                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.svg",
+                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.xmind",
                 mime="application/octet-stream"
             )
