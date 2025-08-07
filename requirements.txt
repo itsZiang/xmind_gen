@@ -11,3 +11,4 @@ PyPDF2>=3.0.1
 python-docx>=1.2.0
 langchain-openai>=0.3.28
 langchain>=0.3.26
+python-multipart>=0.0.20

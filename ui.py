@@ -5,6 +5,7 @@ import json
 from core.text_processing import extract_text_from_file
 import re
 import unicodedata
+import io
 
 API_BASE_URL = "http://localhost:8000/api"
 
@@ -83,16 +84,24 @@ def get_stream_response_with_search(user_requirements):
         raise e
 
 
-def get_stream_response_with_docs(document_content, user_requirements):
-    """Get streaming response from the documents API"""
+def get_stream_response_with_docs(uploaded_file, user_requirements):
+    """Get streaming response from the documents API using file upload"""
     try:
+        # Prepare the file for upload
+        files = {
+            'uploaded_file': (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
+        }
+        
+        # Prepare form data
+        data = {
+            'user_requirements': user_requirements,
+            'stream': 'true'  # Form data requires string values
+        }
+        
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark-from-docs",
-            json={
-                "document_content": document_content,
-                "user_requirements": user_requirements,
-                "stream": True
-            },
+            files=files,
+            data=data,
             stream=True
         )
         response.raise_for_status()
@@ -145,16 +154,24 @@ def get_non_streaming_response(user_requirements, enable_search=False):
         raise e
 
 
-def get_non_streaming_docs_response(document_content, user_requirements):
-    """Get non-streaming response for docs"""
+def get_non_streaming_docs_response(uploaded_file, user_requirements):
+    """Get non-streaming response for docs using file upload"""
     try:
+        # Prepare the file for upload
+        files = {
+            'uploaded_file': (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
+        }
+        
+        # Prepare form data
+        data = {
+            'user_requirements': user_requirements,
+            'stream': 'false'  # Form data requires string values
+        }
+        
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark-from-docs",
-            json={
-                "document_content": document_content,
-                "user_requirements": user_requirements,
-                "stream": False
-            }
+            files=files,
+            data=data
         )
         response.raise_for_status()
         return response.json()["xmindmark"]
@@ -238,7 +255,6 @@ with st.sidebar:
     )
     
     uploaded_file = None
-    document_content = None
     if mode == "docs":
         st.markdown("##### 📁 Chọn file")
         uploaded_file = st.file_uploader(
@@ -248,12 +264,7 @@ with st.sidebar:
             label_visibility="collapsed"
         )
         if uploaded_file:
-            try:
-                document_content = extract_text_from_file(uploaded_file)
-                st.success("✅ Tải file thành công!")
-            except Exception as e:
-                st.error(f"❌ Lỗi xử lý file: {e}")
-                document_content = None
+            st.success(f"✅ Đã chọn file: {uploaded_file.name}")
 
     # Mode indicator
     st.divider()
@@ -274,7 +285,7 @@ with st.sidebar:
     error_message = ""
     if not user_requirements.strip():
         error_message = "⚠️ Vui lòng nhập yêu cầu"
-    elif mode == "docs" and not document_content:
+    elif mode == "docs" and not uploaded_file:
         error_message = "⚠️ Vui lòng tải lên file tài liệu"
     else:
         can_generate = True
@@ -292,7 +303,7 @@ with st.sidebar:
         st.session_state["generating"] = True
         st.session_state["current_mode"] = mode
         st.session_state["streaming_enabled"] = streaming_mode
-        st.session_state["generation_document_content"] = document_content
+        st.session_state["generation_uploaded_file"] = uploaded_file  # Store the uploaded file
         st.session_state["generation_requirements"] = user_requirements
         st.rerun()
 
@@ -309,7 +320,7 @@ with col2:
         current_mode = st.session_state.get("current_mode", "basic")
         streaming_enabled = st.session_state.get("streaming_enabled", True)
         
-        generation_document_content = st.session_state.get("generation_document_content")
+        generation_uploaded_file = st.session_state.get("generation_uploaded_file")
         generation_requirements = st.session_state.get("generation_requirements")
         
         if streaming_enabled:
@@ -327,7 +338,7 @@ with col2:
             try:
                 # Choose the appropriate API endpoint based on mode
                 if current_mode == "docs":
-                    stream_response = get_stream_response_with_docs(generation_document_content, generation_requirements)
+                    stream_response = get_stream_response_with_docs(generation_uploaded_file, generation_requirements)
                 elif current_mode == "search":
                     stream_response = get_stream_response_with_search(generation_requirements)
                 else:  # basic mode
@@ -370,7 +381,7 @@ with col2:
             with st.spinner("Đang xử lý..."):
                 try:
                     if current_mode == "docs":
-                        full_response = get_non_streaming_docs_response(generation_document_content, generation_requirements)
+                        full_response = get_non_streaming_docs_response(generation_uploaded_file, generation_requirements)
                     elif current_mode == "search":
                         full_response = get_non_streaming_response(generation_requirements, enable_search=True)
                     else:  # basic mode
@@ -568,6 +579,6 @@ if st.session_state.get("edited_xmindmark") and not st.session_state.get("genera
             st.download_button(
                 label="📥 Tải file XMind",
                 data=xmind_bytes,
-                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.xmind",
+                file_name=f"{extract_snake_case_title(st.session_state['edited_xmindmark'])}.svg",
                 mime="application/octet-stream"
             )

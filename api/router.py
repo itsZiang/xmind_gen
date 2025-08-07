@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from core.llm_handle import edit_xmindmark_with_llm, generate_xmindmark_no_docs_stream, generate_xmindmark_with_search_stream, edit_xmindmark_with_llm_search, generate_xmindmark_with_search, generate_xmindmark_no_docs
 from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
+from core.text_processing import extract_text_from_file
 from pydantic import BaseModel, Field
 from typing import AsyncIterator
 import json
@@ -147,42 +148,29 @@ async def edit_xmindmark_api(request: EditXMindMarkRequest) -> StreamingResponse
 
 
 @router.post("/generate-xmindmark-from-docs", tags=["generate xmindmark"])
-async def generate_xmindmark_langgraph_api(request: GenerateXMindMarkFromDocsRequest):
+async def generate_xmindmark_langgraph_api(
+    uploaded_file: UploadFile = File(..., description="Tệp tài liệu (PDF, DOCX, hoặc MD)"),
+    user_requirements: str = Form(..., description="Yêu cầu cụ thể của người dùng về mindmap"),
+    stream: bool = Form(..., description="Có sử dụng streaming response hay không")
+):
     """
     Tạo mindmap XMindMark từ tài liệu sử dụng LangGraph
-    
-    **Mô tả:**
-    API này phân tích nội dung tài liệu và tạo mindmap XMindMark dựa trên yêu cầu của người dùng.
-    Sử dụng LangGraph để xử lý phức tạp và tạo ra mindmap có cấu trúc tốt.
-    
-    **Tham số:**
-    - `document_content`: Nội dung tài liệu cần phân tích (văn bản, bài viết, tài liệu kỹ thuật, v.v.)
-    - `user_requirements`: Yêu cầu cụ thể về mindmap (chủ đề chính, cấu trúc, mức độ chi tiết)
-    - `stream`: Bật/tắt streaming response (mặc định: True)
-    
-    **Ví dụ sử dụng:**
-    ```json
-    {
-        "document_content": "Machine Learning là một nhánh của AI...",
-        "user_requirements": "Tạo mindmap về Machine Learning với các khái niệm cơ bản",
-        "stream": true
-    }
-    ```
-    
-    **Response:**
-    - Nếu `stream=true`: Streaming JSON response
-    - Nếu `stream=false`: JSON object với nội dung XMindMark hoàn chỉnh
     """
-    if request.stream:
+    try:
+        document_content = extract_text_from_file(uploaded_file)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if stream:
         response_generator = generate_xmindmark_langgraph_stream(
-            request.document_content, 
-            request.user_requirements
+            document_content,
+            user_requirements
         )
         return create_json_streaming_response(response_generator)
     else:
         xmindmark = generate_xmindmark_langgraph(
-            request.document_content, 
-            request.user_requirements
+            document_content,
+            user_requirements
         )
         return StreamingXMindMarkResponse(xmindmark=xmindmark)
 
