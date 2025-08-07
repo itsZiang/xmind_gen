@@ -5,7 +5,6 @@ from core.utils import xmindmark_to_svg, xmindmark_to_xmind_file
 from core.graph import generate_xmindmark_langgraph, generate_xmindmark_langgraph_stream
 from pydantic import BaseModel
 from io import BytesIO
-import os
 
 router = APIRouter()
 
@@ -71,18 +70,6 @@ async def generate_xmindmark_api(request: GenerateXMindMarkNoDocsRequest):
         else:
             response = generate_xmindmark_no_docs(request.user_requirements)
         return {"xmindmark": response}
-
-
-# @router.post("/to-svg", tags=["output"])
-# async def to_svg_api(xmindmark: XMindMark):
-#     svg_url = xmindmark_to_svg(xmindmark.content)
-#     return {"svg_url": svg_url}
-
-
-# @router.post("/to-xmind", tags=["output"])
-# async def to_xmind_api(xmindmark: XMindMark):
-#     xmind_file = xmindmark_to_xmind_file(xmindmark.content)
-#     return {"xmind_file": xmind_file}
 
 
 @router.post("/to-svg", tags=["save xmindmark"])
