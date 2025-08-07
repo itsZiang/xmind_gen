@@ -4,7 +4,8 @@ from agent.utils.nodes import (
     decide_split,
     split_into_chunks,
     generate_xmindmark_direct,
-    generate_xmindmark_for_chunk,
+    # generate_xmindmark_for_chunk,
+    generate_all_chunks_parallel,
     merge_all_xmindmarks,
     generate_global_title_node,
 )
@@ -18,7 +19,7 @@ def build_graph():
     builder.add_node("generate_global_title", generate_global_title_node)
     builder.add_node("split_chunks", split_into_chunks)
     builder.add_node("generate_direct", generate_xmindmark_direct)
-    builder.add_node("generate_chunk_xmind", generate_xmindmark_for_chunk)
+    builder.add_node("generate_chunk_xmind", generate_all_chunks_parallel)
     builder.add_node("merge_xmind", merge_all_xmindmarks)
 
     builder.add_edge(START, "check_split")

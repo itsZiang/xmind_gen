@@ -28,7 +28,7 @@ async def generate_xmindmark_langgraph_stream(text: str, user_requirements: str)
         if (event["event"] == "on_chat_model_stream" and 
             event.get("metadata", {}).get('langgraph_node','') in ["merge_xmind", "generate_direct"]):
             data = event.get("data", {})
-            if "chunk" in data:
+            if "chunk" in data and data["chunk"].content:
                 yield data["chunk"].content
                 
     

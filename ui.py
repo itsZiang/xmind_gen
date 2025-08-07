@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import base64
+import json
 from core.text_processing import extract_text_from_file
 import re
 import unicodedata
@@ -23,89 +24,143 @@ def extract_snake_case_title(xmindmark: str) -> str:
     return title if title else "mindmap"
 
 
+def parse_json_stream(response):
+    """Parse JSON streaming response and yield delta content"""
+    try:
+        for line in response.iter_lines(decode_unicode=True):
+            if line.strip():
+                try:
+                    chunk_data = json.loads(line)
+                    if chunk_data.get("delta"):
+                        yield chunk_data["delta"]
+                    if chunk_data.get("done", False):
+                        break
+                except json.JSONDecodeError:
+                    continue
+    except Exception as e:
+        raise e
+
+
 def get_stream_response_no_docs(user_requirements):
     """Get streaming response from the no-docs API"""
     try:
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark",
-            json={"user_requirements": user_requirements,
-                  "enable_search": False,
-                  "stream": True},
+            json={
+                "user_requirements": user_requirements,
+                "enable_search": False,
+                "stream": True
+            },
             stream=True
         )
         response.raise_for_status()
         
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                yield chunk
+        for delta in parse_json_stream(response):
+            yield delta
+            
     except Exception as e:
         raise e
+
 
 def get_stream_response_with_search(user_requirements):
     """Get streaming response from the search API"""
     try:
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark",
-            json={"user_requirements": user_requirements,
-                  "enable_search": True,
-                  "stream": True},
+            json={
+                "user_requirements": user_requirements,
+                "enable_search": True,
+                "stream": True
+            },
             stream=True
         )
         response.raise_for_status()
         
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                yield chunk
+        for delta in parse_json_stream(response):
+            yield delta
+            
     except Exception as e:
         raise e
 
-def get_stream_response_with_docs(text, user_requirements):
+
+def get_stream_response_with_docs(document_content, user_requirements):
     """Get streaming response from the documents API"""
     try:
         response = requests.post(
             f"{API_BASE_URL}/generate-xmindmark-from-docs",
-            json={"text": text, 
-                  "user_requirements": user_requirements, 
-                  "stream": True},
+            json={
+                "document_content": document_content,
+                "user_requirements": user_requirements,
+                "stream": True
+            },
             stream=True
         )
         response.raise_for_status()
         
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                yield chunk
+        for delta in parse_json_stream(response):
+            yield delta
+            
     except Exception as e:
         raise e
+
 
 def get_edit_stream_response(current_xmindmark, edit_request, use_search=False, original_requirements=""):
     """Get streaming response from edit API (with or without search)"""
     try:
-        if use_search:
-            response = requests.post(
-                f"{API_BASE_URL}/edit-xmindmark",
-                json={
-                    "current_xmindmark": current_xmindmark,
-                    "edit_request": edit_request,
-                    "enable_search": True,
-                    "original_user_requirements": original_requirements
-                },
-                stream=True
-            )
-        else:
-            response = requests.post(
-                f"{API_BASE_URL}/edit-xmindmark",
-                json={"current_xmindmark": current_xmindmark, 
-                      "edit_request": edit_request,
-                      "enable_search": False,
-                      "original_user_requirements": original_requirements},
-                stream=True
-            )
+        payload = {
+            "current_xmindmark": current_xmindmark,
+            "edit_request": edit_request,
+            "enable_search": use_search,
+            "original_user_requirements": original_requirements
+        }
+        
+        response = requests.post(
+            f"{API_BASE_URL}/edit-xmindmark",
+            json=payload,
+            stream=True
+        )
         response.raise_for_status()
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                yield chunk
+        
+        for delta in parse_json_stream(response):
+            yield delta
+            
     except Exception as e:
         raise e
+
+
+def get_non_streaming_response(user_requirements, enable_search=False):
+    """Get non-streaming response"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark",
+            json={
+                "user_requirements": user_requirements,
+                "enable_search": enable_search,
+                "stream": False
+            }
+        )
+        response.raise_for_status()
+        return response.json()["xmindmark"]
+    except Exception as e:
+        raise e
+
+
+def get_non_streaming_docs_response(document_content, user_requirements):
+    """Get non-streaming response for docs"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/generate-xmindmark-from-docs",
+            json={
+                "document_content": document_content,
+                "user_requirements": user_requirements,
+                "stream": False
+            }
+        )
+        response.raise_for_status()
+        return response.json()["xmindmark"]
+    except Exception as e:
+        raise e
+
 
 def render_svg(svg_bytes):
     """Renders the given SVG bytes as HTML"""
@@ -123,6 +178,7 @@ def render_svg(svg_bytes):
     except Exception as e:
         st.error(f"❌ Lỗi render SVG: {str(e)}")
 
+
 def get_svg_bytes(content):
     """Get SVG bytes from API"""
     try:
@@ -134,6 +190,7 @@ def get_svg_bytes(content):
         return response.content
     except Exception as e:
         raise e
+
 
 def get_xmind_bytes(content):
     """Get XMind file bytes from API"""
@@ -147,6 +204,7 @@ def get_xmind_bytes(content):
     except Exception as e:
         raise e
 
+
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("📌 Nhập yêu cầu & tùy chọn")
@@ -159,19 +217,28 @@ with st.sidebar:
     # Toggle buttons for different modes
     st.subheader("🔧 Tùy chọn tạo mindmap")
     
-       # Chọn chế độ duy nhất
+    # Chọn chế độ duy nhất
     mode = st.radio(
         "Chọn chế độ tạo mindmap",
         options=["basic", "docs", "search"],
         format_func=lambda x: {
             "basic": "💭 Cơ bản (không tài liệu)",
-            "docs": "📄 Từ tài liệu",
+            "docs": "📄 Từ tài liệu", 
             "search": "🔍 Tìm kiếm thông tin"
         }[x],
         help="Chỉ chọn một chế độ duy nhất"
     )
+    
+    # Streaming mode toggle
+    st.divider()
+    streaming_mode = st.toggle(
+        "🌊 Streaming mode", 
+        value=True,
+        help="Bật để xem quá trình tạo mindmap real-time, tắt để đợi kết quả hoàn chỉnh"
+    )
+    
     uploaded_file = None
-    text = None
+    document_content = None
     if mode == "docs":
         st.markdown("##### 📁 Chọn file")
         uploaded_file = st.file_uploader(
@@ -182,45 +249,53 @@ with st.sidebar:
         )
         if uploaded_file:
             try:
-                text = extract_text_from_file(uploaded_file)
+                document_content = extract_text_from_file(uploaded_file)
                 st.success("✅ Tải file thành công!")
             except Exception as e:
                 st.error(f"❌ Lỗi xử lý file: {e}")
-                text = None
+                document_content = None
 
     # Mode indicator
     st.divider()
     if mode == "docs":
         st.info("📄 **Chế độ**: Từ tài liệu")
-        current_mode = "docs_only"
     elif mode == "search":
         st.info("🔍 **Chế độ**: Tìm kiếm")
-        current_mode = "search_only"
     else:
         st.info("💭 **Chế độ**: Cơ bản")
-        current_mode = "basic"
+
+    if streaming_mode:
+        st.info("🌊 **Streaming**: Bật")
+    else:
+        st.info("⏸️ **Streaming**: Tắt")
 
     # Validation
     can_generate = False
     error_message = ""
     if not user_requirements.strip():
         error_message = "⚠️ Vui lòng nhập yêu cầu"
-    elif mode == "docs" and not text:
+    elif mode == "docs" and not document_content:
         error_message = "⚠️ Vui lòng tải lên file tài liệu"
     else:
         can_generate = True
 
+    if error_message:
+        st.warning(error_message)
+
     # Single generate button
     if st.button("🚀 Tạo mind map", disabled=not can_generate, type="primary"):
+        # Clear previous states
         for key in ["xmindmark", "edited_xmindmark", "svg_bytes", "xmind_bytes", "previous_edited_xmindmark"]:
             if key in st.session_state:
                 del st.session_state[key]
+        
         st.session_state["generating"] = True
-        st.session_state["current_mode"] = current_mode
-        st.session_state["generation_text"] = text if mode == "docs" else None
+        st.session_state["current_mode"] = mode
+        st.session_state["streaming_enabled"] = streaming_mode
+        st.session_state["generation_document_content"] = document_content
         st.session_state["generation_requirements"] = user_requirements
-        st.session_state["generation_search_mode"] = (mode == "search")
         st.rerun()
+
 
 # --- MAIN DISPLAY ---
 col1, col2 = st.columns([2, 1])
@@ -229,64 +304,98 @@ col1, col2 = st.columns([2, 1])
 with col2:
     st.subheader("📄 Nội dung XMindMark")
     
-    # Handle streaming generation
+    # Handle generation
     if st.session_state.get("generating", False):
         current_mode = st.session_state.get("current_mode", "basic")
+        streaming_enabled = st.session_state.get("streaming_enabled", True)
         
-        if current_mode == "docs_only":
-            st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu...")
-        elif current_mode == "search_only":
-            st.markdown("### 🤖 Đang tìm kiếm và tạo XMindMark...")
-        elif current_mode == "docs_and_search":
-            st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu + tìm kiếm...")
-        else:
-            st.markdown("### 🤖 Đang tạo XMindMark...")
-            
-        message_placeholder = st.empty()
-        full_response = ""
+        generation_document_content = st.session_state.get("generation_document_content")
+        generation_requirements = st.session_state.get("generation_requirements")
         
-        try:
-            # Choose the appropriate API endpoint based on mode
-            generation_text = st.session_state.get("generation_text")
-            generation_requirements = st.session_state.get("generation_requirements")
-            generation_search_mode = st.session_state.get("generation_search_mode", False)
+        if streaming_enabled:
+            # Streaming mode
+            if current_mode == "docs":
+                st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu...")
+            elif current_mode == "search":
+                st.markdown("### 🤖 Đang tìm kiếm và tạo XMindMark...")
+            else:
+                st.markdown("### 🤖 Đang tạo XMindMark...")
+                
+            message_placeholder = st.empty()
+            full_response = ""
             
-            if current_mode == "docs_only":
-                stream_response = get_stream_response_with_docs(generation_text, generation_requirements)
-            elif current_mode == "search_only":
-                stream_response = get_stream_response_with_search(generation_requirements)
-            elif current_mode == "docs_and_search":
-                # For now, prioritize docs mode when both are enabled
-                # You might want to create a combined endpoint later
-                stream_response = get_stream_response_with_docs(generation_text, generation_requirements)
-            else:  # basic mode
-                stream_response = get_stream_response_no_docs(generation_requirements)
-            
-            for chunk in stream_response:
-                full_response += chunk.decode("utf-8")
-                message_placeholder.markdown(f"```\n{full_response}▌\n```")
-            
-            # Final response without cursor
-            message_placeholder.markdown(f"```\n{full_response}\n```")
-            
-            # Store the generated content
-            st.session_state["xmindmark"] = full_response
-            st.session_state["edited_xmindmark"] = full_response
-            st.session_state["generating"] = False
-            
-            # Generate SVG bytes
             try:
-                svg_bytes = get_svg_bytes(full_response)
-                st.session_state["svg_bytes"] = svg_bytes
-                st.success("✅ Mind map đã tạo và hiển thị!")
+                # Choose the appropriate API endpoint based on mode
+                if current_mode == "docs":
+                    stream_response = get_stream_response_with_docs(generation_document_content, generation_requirements)
+                elif current_mode == "search":
+                    stream_response = get_stream_response_with_search(generation_requirements)
+                else:  # basic mode
+                    stream_response = get_stream_response_no_docs(generation_requirements)
+                
+                for delta in stream_response:
+                    full_response += delta
+                    message_placeholder.markdown(f"```\n{full_response}▌\n```")
+                
+                # Final response without cursor
+                message_placeholder.markdown(f"```\n{full_response}\n```")
+                
+                # Store the generated content
+                st.session_state["xmindmark"] = full_response
+                st.session_state["edited_xmindmark"] = full_response
+                st.session_state["generating"] = False
+                
+                # Generate SVG bytes
+                try:
+                    svg_bytes = get_svg_bytes(full_response)
+                    st.session_state["svg_bytes"] = svg_bytes
+                    st.success("✅ Mind map đã tạo và hiển thị!")
+                except Exception as e:
+                    st.error(f"❌ Không tạo được SVG: {str(e)}")
+                
+                st.rerun()
+                
             except Exception as e:
-                st.error(f"❌ Không tạo được SVG: {str(e)}")
+                st.error(f"❌ Lỗi kết nối API: {str(e)}")
+                st.session_state["generating"] = False
+        else:
+            # Non-streaming mode
+            if current_mode == "docs":
+                st.markdown("### 🤖 Đang tạo XMindMark từ tài liệu... (chờ kết quả hoàn chỉnh)")
+            elif current_mode == "search":
+                st.markdown("### 🤖 Đang tìm kiếm và tạo XMindMark... (chờ kết quả hoàn chỉnh)")
+            else:
+                st.markdown("### 🤖 Đang tạo XMindMark... (chờ kết quả hoàn chỉnh)")
             
-            st.rerun()
-            
-        except Exception as e:
-            st.error(f"❌ Lỗi kết nối API: {str(e)}")
-            st.session_state["generating"] = False
+            with st.spinner("Đang xử lý..."):
+                try:
+                    if current_mode == "docs":
+                        full_response = get_non_streaming_docs_response(generation_document_content, generation_requirements)
+                    elif current_mode == "search":
+                        full_response = get_non_streaming_response(generation_requirements, enable_search=True)
+                    else:  # basic mode
+                        full_response = get_non_streaming_response(generation_requirements, enable_search=False)
+                    
+                    st.markdown(f"```\n{full_response}\n```")
+                    
+                    # Store the generated content
+                    st.session_state["xmindmark"] = full_response
+                    st.session_state["edited_xmindmark"] = full_response
+                    st.session_state["generating"] = False
+                    
+                    # Generate SVG bytes
+                    try:
+                        svg_bytes = get_svg_bytes(full_response)
+                        st.session_state["svg_bytes"] = svg_bytes
+                        st.success("✅ Mind map đã tạo và hiển thị!")
+                    except Exception as e:
+                        st.error(f"❌ Không tạo được SVG: {str(e)}")
+                    
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Lỗi kết nối API: {str(e)}")
+                    st.session_state["generating"] = False
     
     # Handle AI editing streaming
     elif st.session_state.get("editing_with_ai", False):
@@ -306,8 +415,8 @@ with col2:
                 original_requirements=original_req
             )
             
-            for chunk in edit_stream:
-                full_edit_response += chunk.decode("utf-8")
+            for delta in edit_stream:
+                full_edit_response += delta
                 edit_placeholder.markdown(f"```\n{full_edit_response}▌\n```")
             
             # Final response without cursor

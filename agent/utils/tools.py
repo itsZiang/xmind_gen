@@ -5,7 +5,7 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 
-def check_need_split(text: str, max_length: int = 2000) -> bool:
+def check_need_split(text: str, max_length: int = 100) -> bool:
     return len(text) > max_length
 
 
@@ -42,7 +42,8 @@ def merge_xmindmarks(chunks: list[str], global_title: str, user_requirements: st
         if not refined_mindmap or len(refined_mindmap.split('\n')) < 2:
             raise Exception("LLM response quá ngắn hoặc không hợp lệ")
             
-        return refined_mindmap.split('```')[1]
+        # return refined_mindmap.split('```')[1]
+        return refined_mindmap
         
     except Exception as e:
         print(f"Warning: LLM merge failed ({e}), fallback to simple merge")
