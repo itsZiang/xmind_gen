@@ -6,7 +6,7 @@ from core.tavily_search import tavily_search
 load_dotenv()
 
 
-used_llm = llm
+used_llm = misa_llm
 
 def edit_xmindmark_with_llm_search(user_requirements: str, edit_request: str, current_xmindmark: str):
     search_query = f"{user_requirements} {edit_request}".strip()

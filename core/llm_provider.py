@@ -16,7 +16,7 @@ misa_llm = ChatOpenAI(
         "App-Code": "fresher"
     },
     max_tokens=8192,
-    temperature=0.5,
+    temperature=0.4,
     extra_body={
         "service": "test-aiservice.misa.com.vn",
         "chat_template_kwargs": {            
