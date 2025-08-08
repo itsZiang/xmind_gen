@@ -233,7 +233,7 @@ def get_stream_response_from_audio(audio_file, user_requirements):
         files = {"audio_file": (filename, audio_buffer, "audio/wav")}
         data = {
             "user_requirements": user_requirements,
-            "stream": True  # ← Thêm parameter này
+            "stream": True  
         }
         
         response = requests.post(
@@ -535,7 +535,7 @@ with col2:
                     stream_response = get_stream_response_with_docs(generation_document_content, generation_requirements)
                 elif current_mode == "search":
                     stream_response = get_stream_response_with_search(generation_requirements)
-                elif current_mode == "audio_only":
+                elif current_mode == "audio":
                     if generation_audio_file:
                         stream_response = get_stream_response_from_audio(generation_audio_file, generation_requirements)
                     else:

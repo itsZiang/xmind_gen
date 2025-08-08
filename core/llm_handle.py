@@ -20,7 +20,7 @@ def translate_to_vietnamese(english_text: str) -> str:
 def generate_xmindmark_from_audio(transcribed_text: str, user_requirements: str) -> str:
     result = generate_xmindmark(transcribed_text, user_requirements)
     logger.info("XMindMark generation from audio completed")
-    return result
+    return str(result) if result else ""
     
 def generate_xmindmark_from_audio_stream(transcribed_text: str, user_requirements: str):
     prompt = create_xmindmark_prompt(transcribed_text, user_requirements)

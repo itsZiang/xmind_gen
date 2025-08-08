@@ -156,14 +156,14 @@ async def generate_xmindmark_from_audio_api(
         def generate_response():
             try:
                 for chunk in generate_xmindmark_from_audio_stream(vietnamese_text, user_requirements):
-                    if chunk:  
+                    if chunk: 
                         yield chunk
             except Exception as e:
                 logger.error(f"Error in streaming generation: {str(e)}")
                 yield f"Error: {str(e)}"
         
-        return StreamingResponse(generate_response(), media_type="text/event-stream")
-        
+        return create_json_streaming_response(generate_response())        
+    
     except HTTPException:
         raise
     except Exception as e:

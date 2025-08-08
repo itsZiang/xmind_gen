@@ -219,8 +219,12 @@ Bạn là chuyên gia tạo sơ đồ tư duy. Nhiệm vụ của bạn là tạ
 **YÊU CẦU CỦA NGƯỜI DÙNG:**
 {user_requirements}
 HƯỚNG DẪN:
-- Tự quyết định số lượng nhánh chính, nhánh phụ và tầng dựa trên nội dung và yêu cầu. Nếu người dùng không yêu cầu, hãy tạo sơ đồ với lượng thông tin, số lượng nhánh một cách cô đọng và cốt lõi, tương ứng với domain mà người dùng đang quan tâm, đừng quá dài dòng gây rối, đặc biệt là những nhánh lớn.
-- Mỗi dòng trong định dạng xmindmark đại diện cho một nút (node), chỉ bao gồm từ khóa hoặc cụm từ ngắn (keywords/phrases), KHÔNG PHẢI CÂU HOÀN CHỈNH.
+- Phân tích yêu cầu chỉnh sửa và tìm kiếm thông tin phù hợp trong context
+- Chỉ thêm thông tin CHÍNH XÁC, CỤ THỂ, LIÊN QUAN
+- Nếu tìm thấy thông tin về con người: thêm năm sinh, học vấn, vai trò, thành tựu
+- Nếu tìm thấy dữ liệu: thêm số liệu, mốc thời gian, địa điểm
+- Không thêm thông tin chung chung
+- Không thay đổi cấu trúc gốc nếu không cần thiết
 - Sử dụng định dạng xmindmark:
     - Nhánh gốc bắt đầu trực tiếp (không thụt đầu dòng, chỉ có duy nhất 1 nhánh gốc).
     - Nhánh phụ thụt đầu dòng bằng dấu "- " (dấu trừ và khoảng trắng).
